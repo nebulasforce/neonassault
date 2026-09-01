@@ -22,32 +22,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # configure-pages 在 Pages 站点尚未启用时会直接失败，所以先尝试自动建站。
-      # 失败只降级为 warning（不阻断），把具体错误打进日志，便于定位。
-      - name: Ensure Pages enabled
+      # Pages 站点必须先在仓库设置里启用一次（Settings → Pages → Source → "GitHub Actions"）。
+      # GITHUB_TOKEN 缺少 Administration 权限，无法在 workflow 内自动建站，这里只做检查 + 友好提示。
+      - name: Check Pages enabled
         uses: actions/github-script@v7
         with:
           script: |
             const { owner, repo } = context.repo;
             try {
               const { data } = await github.rest.repos.getPages({ owner, repo });
-              core.info(`Pages already enabled: ${data.html_url || data.status || 'ok'}`);
+              core.info(`Pages enabled: ${data.html_url || data.status || 'ok'}`);
             } catch (err) {
-              if (err.status !== 404) {
-                core.warning(`Query Pages failed: HTTP ${err.status} - ${err.message}`);
+              if (err.status === 404) {
+                core.warning('Pages 尚未启用。请到仓库 Settings → Pages → Source 选择 "GitHub Actions" 并保存，然后重跑本工作流。');
               } else {
-                core.info('Pages not enabled yet, trying to create site (build_type=workflow)...');
-                try {
-                  await github.rest.repos.createPagesSite({
-                    owner,
-                    repo,
-                    build_type: 'workflow',
-                  });
-                  core.info('Pages site created successfully');
-                } catch (e) {
-                  core.warning(`Auto-create Pages failed: HTTP ${e.status} - ${e.message}`);
-                  core.warning('Please enable Pages manually: Settings -> Pages -> Source -> "GitHub Actions", then re-run this workflow.');
-                }
+                core.warning(`查询 Pages 状态失败: HTTP ${err.status} - ${err.message}`);
               }
             }
 
