@@ -7,49 +7,54 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to attach this release to (e.g. v1.1.0)'
+        description: 'Git tag to attach this release to (e.g. v1.2.0)'
         required: true
         type: string
 
 permissions:
   contents: write
 
-jobs:
-  packages:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+env:
+  NODE_VERSION: '22'
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+jobs:
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate launcher icons
+        run: |
+          pip install pillow
+          python scripts/gen-icons.py --force
+
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v3
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - name: Install JS deps
-        # ignore-scripts：跳过 Electron 二进制下载。APK 只要 Capacitor。
-        # --registry：覆盖仓库 .npmrc 里的 npmmirror，避免 GitHub 跑手访问不稳定。
+      - name: Install Capacitor deps
         run: pnpm install --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org
 
-      - name: Write android/local.properties
-        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-
-      - name: Sync Capacitor and assemble Debug APK
+      - name: Assemble Debug APK
         run: |
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           npx cap sync android
           cd android
           chmod +x gradlew
@@ -57,53 +62,167 @@ jobs:
 
       - name: Collect APK
         run: |
-          mkdir -p dist-apk
+          mkdir -p dist
           UNI=$(find android/app/build/outputs/apk -name '*universal*.apk' | head -n 1)
           if [ -z "$UNI" ]; then
             UNI=$(find android/app/build/outputs/apk -name '*.apk' | head -n 1)
           fi
           test -n "$UNI"
-          cp "$UNI" dist-apk/neonassault-android-universal.apk
-          ls -lh dist-apk
+          cp "$UNI" dist/neonassault-android-universal.apk
+          ls -lh dist
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: neonassault-android-apk
-          path: dist-apk/neonassault-android-universal.apk
+          name: android-apk
+          path: dist/neonassault-android-universal.apk
           if-no-files-found: error
 
-      - name: Sync HarmonyOS web assets
-        run: node scripts/build-harmonyos.js
+  harmonyos:
+    name: HarmonyOS DevEco zip
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Zip HarmonyOS DevEco project
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate HarmonyOS icons
         run: |
-          mkdir -p dist-hap
-          zip -r dist-hap/neonassault-harmonyos-deveco.zip harmonyos \
+          pip install pillow
+          python scripts/gen-icons.py --force
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Sync web assets and zip project
+        run: |
+          node scripts/build-harmonyos.js
+          mkdir -p dist
+          zip -r dist/neonassault-harmonyos-deveco.zip harmonyos \
             -x 'harmonyos/.hvigor/*' \
             -x 'harmonyos/**/build/*' \
             -x 'harmonyos/.idea/*' \
             -x 'harmonyos/**/.DS_Store'
 
-      - name: Upload HarmonyOS zip artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: neonassault-harmonyos-deveco
-          path: dist-hap/neonassault-harmonyos-deveco.zip
+          name: harmonyos-zip
+          path: dist/neonassault-harmonyos-deveco.zip
           if-no-files-found: error
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+  windows:
+    name: Windows Electron
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate Windows icons
+        run: |
+          pip install pillow
+          python scripts/gen-icons.py --force
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install JS deps
+        run: |
+          printf 'registry=https://registry.npmjs.org\n' > .npmrc
+          pnpm install --frozen-lockfile
+
+      - name: Build Windows packages
+        run: pnpm exec electron-builder --win --publish=never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-electron
+          path: |
+            dist-electron/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS Electron
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate macOS icons
+        run: |
+          pip install pillow
+          python scripts/gen-icons.py --force
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install JS deps
+        run: |
+          printf 'registry=https://registry.npmjs.org\n' > .npmrc
+          pnpm install --frozen-lockfile
+
+      - name: Build macOS packages
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: pnpm exec electron-builder --mac --publish=never -c.mac.identity=null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-electron
+          path: |
+            dist-electron/*.dmg
+            dist-electron/*.zip
+          if-no-files-found: error
+
+  publish:
+    name: GitHub Release
+    needs: [android, harmonyos, windows, macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh dist
+
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
-          files: |
-            dist-apk/neonassault-android-universal.apk
-            dist-hap/neonassault-harmonyos-deveco.zip
+          files: dist/*
           body: |
             ## 下载
 
             - **网页 / PWA**：https://nebulasforce.github.io/neonassault/
-            - **Android**：`neonassault-android-universal.apk`（debug 签名，可直接侧载安装）
-            - **鸿蒙**：GitHub 托管环境打不出 HAP，需要本机 DevEco Studio。
-              `neonassault-harmonyos-deveco.zip` 已同步最新 `web/` 资源，解压后用 DevEco 打开 `harmonyos/` → Build Hap(s)。
+            - **Android**：`neonassault-android-universal.apk`（debug 签名，可侧载）
+            - **Windows**：`neonassault-windows-x64-setup.exe` 安装包，或 `neonassault-windows-x64-portable.exe` 免安装
+            - **macOS**：`neonassault-macos-universal.dmg`（未公证，首次请右键 → 打开）
+            - **鸿蒙**：GitHub 打不出 HAP。`neonassault-harmonyos-deveco.zip` 已同步 `web/` 和图标，用 DevEco 打开 `harmonyos/` → Build Hap(s)
+
+            各端桌面图标 / 启动图标均由 `web/icons/na-512.png`（与 `na-192.png` 同一套 lockup）派生。

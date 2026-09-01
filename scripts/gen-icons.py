@@ -2,18 +2,20 @@
 # -*- coding: utf-8 -*-
 """霓虹突袭 · NEON ASSAULT 全平台图标生成器
 
-从 web/icons/na-512.png（或直接重绘）派生出：
-  - PWA      web/icons/na-{192,512}.png、na-maskable-{192,512}.png
+源图优先 web/icons/na-512.png，否则 na-192.png（同一套战机/坦克 lockup）。
+不会覆盖这两张源图。派生：
+  - PWA      na-maskable-{192,512}.png
   - Electron electron/build/icon.icns、icon.ico、icon.png、icons/<n>x<n>.png
-  - Android  android/app/src/main/res/mipmap-*/ic_launcher{,_round,_foreground}.png
+  - Android  mipmap-*/ic_launcher{,_round,_foreground}.png
+  - 鸿蒙     app_icon / startIcon / foreground / background
 
 依赖：Pillow（pip install pillow）
 macOS 的 .icns 由系统自带 iconutil 生成，其他平台跳过。
 
 用法：
     python3 scripts/gen-icons.py            # 只补缺失的
-    python3 scripts/gen-icons.py --force    # 全部重生成
-    python3 scripts/gen-icons.py --redraw   # 连源图也重绘后派生
+    python3 scripts/gen-icons.py --force    # 全部重生成（仍不覆盖源图）
+    python3 scripts/gen-icons.py --redraw   # 忽略源图，重绘几何 NA 后再派生
 """
 import math
 import os
@@ -32,9 +34,11 @@ os.chdir(ROOT)
 FORCE = '--force' in sys.argv
 REDRAW = '--redraw' in sys.argv
 
-# ----------------------------------------------------------------------------
-# 1. 源图：512×512 霓虹六边形 + NA 字样
-# ----------------------------------------------------------------------------
+BG = (10, 12, 16, 255)
+SRC_512 = os.path.join('web', 'icons', 'na-512.png')
+SRC_192 = os.path.join('web', 'icons', 'na-192.png')
+
+
 def hex_points(cx, cy, r):
     return [(cx + r * math.cos(math.pi / 3 * i - math.pi / 6),
              cy + r * math.sin(math.pi / 3 * i - math.pi / 6)) for i in range(6)]
@@ -45,7 +49,6 @@ def draw_source(size, maskable=False):
     img = Image.new('RGBA', (size, size), (5, 7, 15, 255))
     d = ImageDraw.Draw(img)
 
-    # 背景网格
     step = max(4, size // 8)
     for i in range(0, size + 1, step):
         d.line((i, 0, i, size), fill=(125, 249, 255, 12), width=1)
@@ -53,18 +56,11 @@ def draw_source(size, maskable=False):
 
     cx = cy = size // 2
     r = (size - pad * 2) // 2
-
-    # 外六边形辉光
     outer = hex_points(cx, cy, r)
-    for k in range(6):
-        d.polygon(outer, outline=(125, 249, 255, 35 - k * 5))
     d.polygon(outer, outline=(125, 249, 255, 255), width=max(2, size // 64))
-
-    # 内六边形（紫）
     d.polygon(hex_points(cx, cy, r * 0.75),
               outline=(199, 125, 255, 200), width=max(1, size // 96))
 
-    # NA 字样
     font_size = int(r * 0.65)
     font = None
     for fp in ('/System/Library/Fonts/Helvetica.ttc',
@@ -83,14 +79,11 @@ def draw_source(size, maskable=False):
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     x = cx - tw / 2 - bbox[0]
     y = cy - th / 2 - bbox[1]
-    for off in range(1, 5):
-        d.text((x, y), 'NA', font=font, fill=(125, 249, 255, 40 - off * 8))
     d.text((x, y), 'NA', font=font, fill=(255, 255, 255, 240))
     return img
 
 
 def save(img, path):
-    """仅在 --force 或文件缺失时写入"""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     if FORCE or not os.path.exists(path):
         img.save(path, optimize=True)
@@ -98,32 +91,43 @@ def save(img, path):
     return False
 
 
-# --- 源图 ---
-SRC_PATH = os.path.join('web', 'icons', 'na-512.png')
-if REDRAW or not os.path.exists(SRC_PATH):
-    os.makedirs(os.path.dirname(SRC_PATH), exist_ok=True)
-    draw_source(512).save(SRC_PATH, optimize=True)
-    print('源图已重绘：' + SRC_PATH)
-SRC = Image.open(SRC_PATH).convert('RGBA')
+def make_padded(src, size, pad_ratio=0.18, bg=BG):
+    canvas = Image.new('RGBA', (size, size), bg)
+    inner = max(1, int(size * (1 - pad_ratio * 2)))
+    logo = src.resize((inner, inner), Image.LANCZOS)
+    canvas.paste(logo, ((size - inner) // 2, (size - inner) // 2), logo)
+    return canvas
+
+
+def load_lockup():
+    if REDRAW:
+        img = draw_source(512)
+        print('源图已按几何 NA 重绘（--redraw）')
+        return img
+    for path in (SRC_512, SRC_192):
+        if os.path.exists(path):
+            print('源图：' + path)
+            return Image.open(path).convert('RGBA')
+    os.makedirs(os.path.dirname(SRC_512), exist_ok=True)
+    img = draw_source(512)
+    img.save(SRC_512, optimize=True)
+    print('未找到 lockup，已回退绘制：' + SRC_512)
+    return img
+
+
+SRC = load_lockup()
 
 written = 0
 
-# ----------------------------------------------------------------------------
-# 2. PWA 图标
-# ----------------------------------------------------------------------------
+# PWA maskable：给圆裁切留边。na-192 / na-512 是用户源图，不覆盖。
 for sz in (192, 512):
-    if save(SRC.resize((sz, sz), Image.LANCZOS), f'web/icons/na-{sz}.png'):
-        written += 1
-    if save(draw_source(sz, maskable=True), f'web/icons/na-maskable-{sz}.png'):
+    if save(make_padded(SRC, sz, 0.12), f'web/icons/na-maskable-{sz}.png'):
         written += 1
 
-# ----------------------------------------------------------------------------
-# 3. Electron 图标
-# ----------------------------------------------------------------------------
+# Electron
 BUILD = os.path.join('electron', 'build')
 os.makedirs(BUILD, exist_ok=True)
 
-# macOS .icns：先拼 .iconset，再用 iconutil
 ICONSET = os.path.join(BUILD, 'icon.iconset')
 if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.icns')):
     shutil.rmtree(ICONSET, ignore_errors=True)
@@ -144,7 +148,6 @@ if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.icns')):
         print('未找到 iconutil（仅 macOS 可用），跳过 .icns')
     shutil.rmtree(ICONSET, ignore_errors=True)
 
-# Windows .ico（多尺寸）
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.ico')):
     imgs = [SRC.resize((s, s), Image.LANCZOS) for s in ICO_SIZES]
@@ -152,18 +155,25 @@ if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.ico')):
                  sizes=[(s, s) for s in ICO_SIZES], append_images=imgs[1:])
     written += 1
 
-# Linux
 if save(SRC.resize((512, 512), Image.LANCZOS), os.path.join(BUILD, 'icon.png')):
     written += 1
 for s in (16, 32, 48, 64, 128, 256, 512):
     if save(SRC.resize((s, s), Image.LANCZOS), os.path.join(BUILD, 'icons', f'{s}x{s}.png')):
         written += 1
 
-# ----------------------------------------------------------------------------
-# 4. Android 启动图标
-# ----------------------------------------------------------------------------
+# Android
 RES = os.path.join('android', 'app', 'src', 'main', 'res')
 if os.path.isdir(RES):
+    bg_xml = os.path.join(RES, 'values', 'ic_launcher_background.xml')
+    os.makedirs(os.path.dirname(bg_xml), exist_ok=True)
+    if FORCE or not os.path.exists(bg_xml):
+        with open(bg_xml, 'w', encoding='utf-8') as f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n'
+                    '<resources>\n'
+                    '    <color name="ic_launcher_background">#0A0C10</color>\n'
+                    '</resources>\n')
+        written += 1
+
     def make_round(img):
         size = img.size[0]
         mask = Image.new('L', (size, size), 0)
@@ -180,7 +190,6 @@ if os.path.isdir(RES):
         if save(make_round(sq), os.path.join(RES, folder, 'ic_launcher_round.png')):
             written += 1
 
-    # 自适应图标前景层：108dp 画布，安全区为中心 66dp（≈0.611）
     for folder, size in {'mipmap-mdpi': 108, 'mipmap-hdpi': 162, 'mipmap-xhdpi': 216,
                          'mipmap-xxhdpi': 324, 'mipmap-xxxhdpi': 432}.items():
         canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
@@ -190,13 +199,11 @@ if os.path.isdir(RES):
         if save(canvas, os.path.join(RES, folder, 'ic_launcher_foreground.png')):
             written += 1
 
-# ----------------------------------------------------------------------------
-# 5. 鸿蒙资源图标
-# ----------------------------------------------------------------------------
+# HarmonyOS
 HM = os.path.join('harmonyos', 'entry', 'src', 'main', 'resources', 'base', 'media')
 if os.path.isdir(HM):
     size = 192
-    if save(Image.new('RGBA', (size, size), (5, 7, 15, 255)), os.path.join(HM, 'background.png')):
+    if save(Image.new('RGBA', (size, size), BG), os.path.join(HM, 'background.png')):
         written += 1
     fg = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     inner = int(size * 0.72)
@@ -210,4 +217,4 @@ if os.path.isdir(HM):
         written += 1
 
 print(f'图标生成完成，写入 {written} 个文件。')
-print('提示：加 --force 强制重生成，加 --redraw 连源图一起重绘。')
+print('提示：加 --force 强制重生成，加 --redraw 忽略源图重绘几何 NA。')

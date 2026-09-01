@@ -1,6 +1,6 @@
 {
   "name": "neonassault",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "霓虹突袭 · NEON ASSAULT — 跨平台双摇杆竞技场射击游戏",
   "private": true,
   "author": "Alex Xing",
@@ -54,22 +54,24 @@
         "filter": ["**/*"]
       }
     ],
+    "artifactName": "neonassault-${os}-${arch}.${ext}",
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": ["universal"]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": ["universal"]
         }
       ],
       "category": "public.app-category.games",
       "icon": "electron/build/icon.icns",
       "darkModeSupport": true,
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "artifactName": "neonassault-macos-${arch}.${ext}"
     },
     "win": {
       "target": [
@@ -82,7 +84,8 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "electron/build/icon.ico"
+      "icon": "electron/build/icon.ico",
+      "artifactName": "neonassault-windows-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -96,7 +99,11 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "neonassault-windows-${arch}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "neonassault-windows-${arch}-portable.${ext}"
     }
   }
 }
