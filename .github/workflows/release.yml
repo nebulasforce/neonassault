@@ -1,0 +1,88 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Write android/local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Sync Capacitor and assemble Debug APK
+        run: |
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist-apk
+          UNI=$(find android/app/build/outputs/apk -name '*universal*.apk' | head -n 1)
+          if [ -z "$UNI" ]; then
+            UNI=$(find android/app/build/outputs/apk -name '*.apk' | head -n 1)
+          fi
+          test -n "$UNI"
+          cp "$UNI" dist-apk/neonassault-android-universal.apk
+          ls -lh dist-apk
+
+      - name: Sync HarmonyOS web assets
+        run: node scripts/build-harmonyos.js
+
+      - name: Zip HarmonyOS DevEco project
+        run: |
+          mkdir -p dist-hap
+          zip -r dist-hap/neonassault-harmonyos-deveco.zip harmonyos \
+            -x 'harmonyos/.hvigor/*' \
+            -x 'harmonyos/**/build/*' \
+            -x 'harmonyos/.idea/*' \
+            -x 'harmonyos/**/.DS_Store'
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist-apk/neonassault-android-universal.apk
+            dist-hap/neonassault-harmonyos-deveco.zip
+          body: |
+            ## 下载
+
+            - **网页 / PWA**：https://nebulasforce.github.io/neonassault/
+            - **Android**：`neonassault-android-universal.apk`（debug 签名，可直接侧载安装）
+            - **鸿蒙**：GitHub 托管环境打不出 HAP，需要本机 DevEco Studio。
+              `neonassault-harmonyos-deveco.zip` 已同步最新 `web/` 资源，解压后用 DevEco 打开 `harmonyos/` → Build Hap(s)。

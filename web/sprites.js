@@ -15,6 +15,12 @@ window.SPR = (function () {
     wasp:        'wasp.png',
     gunship:     'gunship.png',
     dreadnought: 'dreadnought.png',
+    /* 地面敌人 */
+    grunt:       'grunt.png',
+    runner:      'runner.png',
+    shooter:     'shooter.png',
+    sniper:      'sniper.png',
+    tank:        'tank.png',
     /* 地面 Boss */
     sentinel:    'sentinel.png',
     wraith:      'wraith.png',

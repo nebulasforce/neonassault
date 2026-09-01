@@ -345,7 +345,8 @@ function glow(color) {
   g.addColorStop(0.34, rgba(color, 0.36));
   g.addColorStop(0.66, rgba(color, 0.09));
   g.addColorStop(1.00, rgba(color, 0));
-  x.fillStyle = g; x.fillRect(0, 0, S, S);
+  x.fillStyle = g;
+  x.beginPath(); x.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); x.fill();
   GLOW.set(color, c);
   return c;
 }
