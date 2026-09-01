@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /* 图标生成入口：找到带 Pillow 的 Python，然后跑 scripts/gen-icons.py
  *
+ * 源图：web/icons/na-cool-1024.png（不会被覆盖）
+ *
  * 用法：
  *   node scripts/gen-icons.js
- *   node scripts/gen-icons.js --force    # 强制重生成
- *   node scripts/gen-icons.js --redraw   # 连源图一起重绘
+ *   node scripts/gen-icons.js --force    # 强制重生成派生图标
+ *   node scripts/gen-icons.js --redraw   # 忽略源图，改用几何 NA
  */
 const { spawnSync } = require('child_process');
 const path = require('path');

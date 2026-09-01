@@ -74,6 +74,15 @@ if ('serviceWorker' in navigator) {
             border:1px solid rgba(255,255,255,.14);background:rgba(6,11,22,.72);
             color:var(--ink);font-size:13px;transition:.15s;backdrop-filter:blur(7px)}
   #pauseBtn:hover{border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 18px rgba(125,249,255,.35)}
+  #assistHud{display:flex;gap:6px;pointer-events:auto}
+  .assist-btn{appearance:none;font:inherit;cursor:pointer;pointer-events:auto;
+              height:34px;padding:0 10px;letter-spacing:.12em;font-size:10px;font-weight:800;
+              border:1px solid rgba(199,125,255,.4);background:rgba(6,11,22,.72);
+              color:#c77dff;backdrop-filter:blur(7px);transition:.15s}
+  .assist-btn.on{background:rgba(199,125,255,.32);color:#fff;border-color:#c77dff;
+                 box-shadow:0 0 16px rgba(199,125,255,.45)}
+  .assist-btn:hover{border-color:#c77dff;color:#fff}
+  body.touch #assistHud{display:none}
 
   .hud-bl{position:absolute;left:22px;bottom:22px;width:242px}
   .bar{position:relative;height:15px;border:1px solid rgba(255,255,255,.12);
@@ -175,7 +184,7 @@ if ('serviceWorker' in navigator) {
              letter-spacing:.12em;box-shadow:0 0 22px rgba(199,125,255,.35)}
   #touchDash:active{background:rgba(199,125,255,.34);transform:scale(.94)}
   #touchDash.cool{opacity:.35}
-  /* 换枪 / AUTO：横排靠在 DASH 左侧，少占高度 */
+  /* 换枪 / 瞄准 / 发射：横排靠在 DASH 左侧，少占高度 */
   #touchPrev,#touchNext{position:absolute;
              right:max(96px, calc(env(safe-area-inset-right) + 74px));
              bottom:max(148px, calc(env(safe-area-inset-bottom) + 132px));
@@ -186,16 +195,17 @@ if ('serviceWorker' in navigator) {
              backdrop-filter:blur(3px);line-height:1}
   #touchPrev{right:max(156px, calc(env(safe-area-inset-right) + 134px))}
   #touchPrev:active,#touchNext:active{background:rgba(125,249,255,.3);transform:scale(.93)}
-  #touchAuto{position:absolute;
-             right:max(96px, calc(env(safe-area-inset-right) + 74px));
+  #touchAim,#touchFire{position:absolute;
              bottom:max(208px, calc(env(safe-area-inset-bottom) + 192px));
-             width:112px;height:38px;border-radius:19px;
+             width:54px;height:38px;border-radius:19px;
              pointer-events:auto;touch-action:none;border:1.5px solid rgba(199,125,255,.55);
-             background:rgba(8,16,30,.55);color:#c77dff;font-size:11px;font-weight:800;
-             letter-spacing:.16em;cursor:pointer;backdrop-filter:blur(3px);transition:.2s}
-  #touchAuto.on{background:rgba(199,125,255,.3);color:#fff;border-color:#c77dff;
+             background:rgba(8,16,30,.55);color:#c77dff;font-size:10px;font-weight:800;
+             letter-spacing:.12em;cursor:pointer;backdrop-filter:blur(3px);transition:.2s}
+  #touchFire{right:max(96px, calc(env(safe-area-inset-right) + 74px))}
+  #touchAim{right:max(156px, calc(env(safe-area-inset-right) + 134px))}
+  #touchAim.on,#touchFire.on{background:rgba(199,125,255,.3);color:#fff;border-color:#c77dff;
                 box-shadow:0 0 22px rgba(199,125,255,.55)}
-  #touchAuto:active{transform:scale(.95)}
+  #touchAim:active,#touchFire:active{transform:scale(.95)}
 
   /* ── 横屏 HUD：顶栏信息，底部让给拇指 ── */
   body.touch #game{touch-action:none}
@@ -246,8 +256,10 @@ if ('serviceWorker' in navigator) {
       right:max(82px, calc(env(safe-area-inset-right) + 64px));
       bottom:max(132px, calc(env(safe-area-inset-bottom) + 116px))}
     body.touch #touchPrev{right:max(134px, calc(env(safe-area-inset-right) + 116px))}
-    body.touch #touchAuto{right:max(82px, calc(env(safe-area-inset-right) + 64px));
-      bottom:max(186px, calc(env(safe-area-inset-bottom) + 170px));width:98px;height:34px;font-size:10px}
+    body.touch #touchAim,body.touch #touchFire{
+      bottom:max(186px, calc(env(safe-area-inset-bottom) + 170px));width:46px;height:34px;font-size:9px}
+    body.touch #touchFire{right:max(82px, calc(env(safe-area-inset-right) + 64px))}
+    body.touch #touchAim{right:max(134px, calc(env(safe-area-inset-right) + 116px))}
   }
   @media (max-height:380px){
     body.touch .hud-label{display:none}
@@ -259,7 +271,8 @@ if ('serviceWorker' in navigator) {
       bottom:max(112px, calc(env(safe-area-inset-bottom) + 96px))}
     body.touch #touchPrev,body.touch #touchNext{width:40px;height:40px;font-size:13px;
       bottom:max(114px, calc(env(safe-area-inset-bottom) + 98px))}
-    body.touch #touchAuto{height:30px;bottom:max(162px, calc(env(safe-area-inset-bottom) + 146px))}
+    body.touch #touchAim,body.touch #touchFire{height:30px;width:42px;
+      bottom:max(162px, calc(env(safe-area-inset-bottom) + 146px))}
     body.touch #hint{top:max(72px, calc(env(safe-area-inset-top) + 64px))}
   }
 
@@ -448,6 +461,7 @@ if ('serviceWorker' in navigator) {
         border:1px solid rgba(255,255,255,.16);background:none;color:var(--dim);padding:9px 15px;transition:.15s}
   .mute:hover{border-color:var(--ink);color:var(--ink)}
   .mute.off{color:var(--magenta);border-color:rgba(255,77,109,.5)}
+  .mute.on{color:var(--cyan);border-color:rgba(125,249,255,.55);background:rgba(125,249,255,.1)}
 
   /* ══════════ 成就 ══════════ */
   #achToasts{position:absolute;right:18px;top:96px;width:min(320px,58vw);
@@ -603,6 +617,10 @@ if ('serviceWorker' in navigator) {
     </div>
 
     <div class="hud-tr" data-page-node-id="brpW9djMTNJjzEyWsYSTHL">
+      <div id="assistHud">
+        <button id="hudAim" class="assist-btn" title="自动瞄准">AIM</button>
+        <button id="hudFire" class="assist-btn" title="自动发射">FIRE</button>
+      </div>
       <button id="pauseBtn" title="暂停 (Esc / P)" data-page-node-id="zEK8lQ7vlXPmruY7GIJDXf">❚❚</button>
       <canvas id="minimap" width="176" height="136" data-page-node-id="aHB17EIwkrhM8bB1CFqXZ0"></canvas>
       <div class="mm-label" data-page-node-id="Nmxs8e3FuViac4MBfN08qK">雷达 / RADAR</div>
@@ -632,7 +650,8 @@ if ('serviceWorker' in navigator) {
   <div id="touchControls" data-page-node-id="touchControls01">
     <div id="stickMove" class="touch-stick"><div class="knob"></div></div>
     <div id="stickAim" class="touch-stick"><div class="knob"></div></div>
-    <button id="touchAuto" class="touch-btn">AUTO</button>
+    <button id="touchAim" class="touch-btn">AIM</button>
+    <button id="touchFire" class="touch-btn">FIRE</button>
     <button id="touchPrev" class="touch-btn">◀</button>
     <button id="touchNext" class="touch-btn">▶</button>
     <button id="touchDash" class="touch-btn">DASH</button>

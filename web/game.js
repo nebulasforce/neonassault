@@ -274,7 +274,7 @@ const SFX = {
 };
 
 /* ═══ 4. 存档与状态 ═════════════════════════════════════
-   localStorage na_save_v2：关卡解锁 / 最高分 / 金币 / 商店层数 / 成就 / 静音
+   localStorage na_save_v2：关卡解锁 / 最高分 / 金币 / 商店层数 / 成就 / 静音 / 辅助瞄准发射
    购买与击杀即时写入，刷新或换端（同浏览器）可接着玩               */
 const SAVE_KEY = 'na_save_v2';
 function loadSave() {
@@ -289,6 +289,8 @@ function loadSave() {
     best: Math.max(+s.best || 0, old),
     sec: (s.sec && typeof s.sec === 'object') ? s.sec : {},
     muted: !!s.muted,
+    autoAim: !!s.autoAim,
+    autoFire: !!s.autoFire,
     gold: Math.max(0, s.gold | 0),
     shop,
     ach: (s.ach && typeof s.ach === 'object') ? s.ach : {},
@@ -300,6 +302,8 @@ function persist() {
 }
 let save = loadSave();
 muted = save.muted;
+let autoAim = !!save.autoAim;   // 自动瞄准：未手动瞄准时锁定最近敌人
+let autoFire = !!save.autoFire; // 自动发射：有目标时持续开火，不必按住
 ACH_STATS.forEach(k => { if (typeof save.ach[k] !== 'number') save.ach[k] = 0; });
 
 /* ═══ 4.5 成就运行时 ═════════════════════════════════════
@@ -369,6 +373,8 @@ function achTick() {
 let state = 'menu';                     // menu | levels | shop | playing | paused | dead | perks
 let enemies = [], eBullets = [], pBullets = [], parts = [], beams = [];
 let pickups = [], portals = [], texts = [], obstacles = [], decals = [];
+let authorMark = { x: 190, y: 180, rot: -0.18 };  /* 地面 Alex 喷漆位置 */
+let authorSpr = null, authorSprAccent = '';
 let bombs = [];            // 空中单位投下的航弹
 let player = null, boss = null;
 let wave = 0, score = 0, best = save.best, runGold = 0;
@@ -387,8 +393,7 @@ const stick = { active:false, x:0, y:0, id:null, cx:0, cy:0 };
 const aimStick = { active:false, x:0, y:0, id:null, cx:0, cy:0 };
 const isTouch = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 let touchMode = false;     // 触屏模式：半自动武器按住连发、隐藏鼠标准星
-let touchAuto = false;     // 触屏 AUTO 模式：不按住右半屏时自动锁定最近敌人持续开火
-let touchLock = null;      // AUTO 模式当前锁定的目标（用于画锁定框）
+let touchLock = null;      // 自动瞄准当前锁定的目标（用于画锁定框）
 let kbAimFiring = false;   // 方向键瞄准时由 updatePlayer 合成的开火状态，
                            // 方向键释放后用来把 mouse.down 清回去。
 
@@ -486,6 +491,15 @@ function buildArena() {
       kind: pick(kinds), a: rand(0.35, 0.9),
     });
   }
+
+  /* 作者喷漆：贴在某个角落的空地上，避开掩体，开局看不见 */
+  const corners = [
+    { x: 188, y: ARENA.h - 164, rot: -0.18 },
+    { x: ARENA.w - 198, y: ARENA.h - 158, rot: 0.14 },
+    { x: 192, y: 172, rot: 0.22 },
+    { x: ARENA.w - 204, y: 176, rot: -0.08 },
+  ];
+  authorMark = corners.find(p => !inObstacle(p.x, p.y, 86)) || corners[0];
 }
 
 function inObstacle(x, y, pad) {
@@ -738,8 +752,8 @@ function startWave() {
   }
   if (lw === 1 && sector === 0)
     showHint(touchMode
-      ? '左半屏移动 · 右半屏瞄准开火 · DASH 冲刺 · AUTO 自动瞄准 · ◀▶ 换枪'
-      : 'WASD 移动 · 方向键瞄准开火（或鼠标） · Shift/空格 冲刺 · Q/E 换枪');
+      ? '左半屏移动 · 右半屏瞄准开火 · AIM 自动瞄准 · FIRE 自动发射 · DASH 冲刺'
+      : 'WASD 移动 · 方向键瞄准开火 · 右上 AIM/FIRE 辅助开关 · Shift 冲刺 · Q/E 换枪');
 }
 
 function pumpSpawns(dt) {
@@ -872,6 +886,19 @@ function spawnDriftCrate() {
 }
 
 /* ═══ 8. 玩家 ═══════════════════════════════════════════ */
+function nearestLiveEnemy(p) {
+  let best = null, bd = Infinity;
+  for (const e of enemies) {
+    if (e.dead || e.spawnT > 0) continue;
+    const d = (e.x - p.x) * (e.x - p.x) + (e.y - p.y) * (e.y - p.y);
+    if (d < bd) { bd = d; best = e; }
+  }
+  return best;
+}
+function anyLiveEnemy() {
+  for (const e of enemies) if (!e.dead && e.spawnT <= 0) return true;
+  return false;
+}
 function updatePlayer(dt) {
   const p = player;
   p.cool -= dt; p.dashCd -= dt; p.iframe -= dt; p.hurtFlash -= dt; p.muzzle -= dt;
@@ -884,26 +911,17 @@ function updatePlayer(dt) {
   const _ak = keys;
   let aimKey = _ak['arrowleft'] || _ak['arrowright'] || _ak['arrowup'] || _ak['arrowdown'];
 
-  /* 触屏 AUTO 模式：右手不用一直按住瞄准摇杆，武器自动锁定最近敌人持续开火。
-     右半屏照常可以随时触碰接管手动瞄准（瞄准摇杆优先级更高）。
-     对「走位为主、火力为辅」的移动端玩家，操作量直接减半。 */
-  if (touchMode && touchAuto && !aimKey && !aimStick.active) {
-    let best = null, bd = Infinity;
-    for (const e of enemies) {
-      if (e.dead || e.spawnT > 0) continue;
-      const dx = e.x - p.x, dy = e.y - p.y;
-      const d = dx * dx + dy * dy;
-      if (d < bd) { bd = d; best = e; }
-    }
+  /* 自动瞄准：未手动接管时锁定最近敌人。
+     手动接管：方向键 / 触屏瞄准摇杆 / 桌面按住左键。 */
+  const manualAim = aimKey || aimStick.active || (!touchMode && mouse.down);
+  touchLock = null;
+  if (autoAim && !manualAim) {
+    const best = nearestLiveEnemy(p);
     if (best) {
       p.aim = Math.atan2(best.y - p.y, best.x - p.x);
       mouse.x = p.x - cam.x + Math.cos(p.aim) * 220;
       mouse.y = p.y - cam.y + Math.sin(p.aim) * 220;
-      mouse.down = true;
       touchLock = best;
-    } else {
-      mouse.down = false;          // 场上没有目标时不空射
-      touchLock = null;
     }
   }
 
@@ -920,9 +938,11 @@ function updatePlayer(dt) {
     mouse.y = p.y - cam.y + Math.sin(p.aim) * KB_AIM_DIST;
     if (!mouse.down) kbAimFiring = true;       /* 仅首次接管时记录 */
     mouse.down = true;                          /* 自动开火 */
-  } else {
+  } else if (!touchLock) {
     p.aim = Math.atan2(mouse.y + cam.y - p.y, mouse.x + cam.x - p.x);
     if (kbAimFiring) { mouse.down = false; kbAimFiring = false; }
+  } else if (kbAimFiring) {
+    mouse.down = false; kbAimFiring = false;
   }
 
   let mx = 0, my = 0, ml = 0;
@@ -978,11 +998,16 @@ function updatePlayer(dt) {
 
   const w = WEAPONS[p.wi];
   let wantFire = false;
-  /* 触屏 / 方向键瞄准：按住 = 持续开火（仍受武器自身射速 / 弹药限制）。
-     这样半自动武器（手枪、霰弹）也能在键盘下连发。 */
-  if (w.auto || touchMode || aimKey) wantFire = mouse.down;
-  else { if (mouse.down && !p.firedPress) wantFire = true; }
-  if (mouse.down) p.firedPress = true; else p.firedPress = false;
+  /* 自动发射：有目标时持续开火。与自动瞄准独立——
+     只开瞄准要对准但不扣扳机；只开发射朝当前朝向扫射。
+     两者都开 = 旧 AUTO（锁最近敌人并连发，空场停火）。 */
+  const assistFire = autoFire && (autoAim ? !!(touchLock && !touchLock.dead) : anyLiveEnemy());
+  const holdFire = mouse.down || assistFire;
+  /* 触屏 / 方向键 / 自动发射：按住 = 持续开火（仍受武器自身射速 / 弹药限制）。
+     这样半自动武器（手枪、霰弹）也能在辅助或键盘下连发。 */
+  if (w.auto || touchMode || aimKey || autoFire) wantFire = holdFire;
+  else { if (holdFire && !p.firedPress) wantFire = true; }
+  if (holdFire) p.firedPress = true; else p.firedPress = false;
   if (wantFire && p.cool <= 0 && p.ammo[w.id] > 0) fire(w);
 
   p.shRegenT -= dt;
@@ -1619,6 +1644,7 @@ function render() {
   ctx.translate(-Math.round(cam.x) + cam.sx, -Math.round(cam.y) + cam.sy);
   drawFloor();
   drawDecals();
+  drawAuthorMark();        /* 角落地面喷漆，压在贴花上、被掩体挡住 */
   drawAirShadows();        /* 空中单位的地面投影（会被障碍物遮挡，更真实） */
   drawObstacles();
   drawPortals();
@@ -1638,6 +1664,7 @@ function render() {
   drawVignette();
   drawBossIntro();
   if (touchMode) drawTouchAim(); else drawCrosshair();
+  drawAimLock();
   drawFlash();
 }
 
@@ -1696,6 +1723,91 @@ function drawDecals() {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+}
+
+/* 离屏缓存「ALEX」喷漆：过喷底晕 + 磨损字模 + 滴流，主题色换了才重画 */
+function makeAuthorSpr() {
+  if (authorSpr && authorSprAccent === theme.accent) return authorSpr;
+  authorSprAccent = theme.accent;
+  const W = 220, H = 96, dpr = 2;
+  const c = document.createElement('canvas');
+  c.width = W * dpr; c.height = H * dpr;
+  const x = c.getContext('2d');
+  x.scale(dpr, dpr);
+  let s = 2166136261;
+  const seed = theme.accent;
+  for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
+  const r = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
+  const col = theme.accent;
+
+  x.translate(W / 2, H / 2);
+
+  /* 过喷底晕 */
+  const g = x.createRadialGradient(0, 6, 6, 0, 6, 78);
+  g.addColorStop(0, TEX.rgba(col, 0.22));
+  g.addColorStop(1, TEX.rgba(col, 0));
+  x.fillStyle = g;
+  x.beginPath(); x.ellipse(0, 6, 78, 30, 0, 0, TAU); x.fill();
+
+  /* 散落喷点 */
+  x.fillStyle = TEX.rgba(col, 1);
+  for (let i = 0; i < 70; i++) {
+    x.globalAlpha = 0.06 + r() * 0.16;
+    x.fillRect((r() - 0.5) * 148, (r() - 0.5) * 48, 0.7 + r() * 1.8, 0.7 + r() * 1.8);
+  }
+
+  /* 字模 */
+  x.globalAlpha = 0.34;
+  x.fillStyle = TEX.rgba(col, 1);
+  x.font = '800 26px system-ui,sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText('ALEX', 0, -3);
+  x.globalAlpha = 0.12;
+  x.fillText('ALEX', 1.3, 0.4);
+
+  /* 磨损：抠掉几点，像旧喷漆掉皮 */
+  x.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 14; i++) {
+    x.globalAlpha = 0.3 + r() * 0.55;
+    x.beginPath();
+    x.arc((r() - 0.5) * 64, (r() - 0.5) * 14, 0.7 + r() * 1.7, 0, TAU);
+    x.fill();
+  }
+  x.globalCompositeOperation = 'source-over';
+
+  /* 滴流 */
+  x.globalAlpha = 0.22;
+  x.strokeStyle = TEX.rgba(col, 1);
+  x.lineWidth = 1.35;
+  x.lineCap = 'round';
+  const drips = [-30, -9, 12, 31];
+  for (let i = 0; i < drips.length; i++) {
+    const len = 7 + (i * 7) % 12;
+    x.beginPath();
+    x.moveTo(drips[i], 11);
+    x.lineTo(drips[i] + 0.5, 11 + len);
+    x.stroke();
+    x.beginPath();
+    x.arc(drips[i] + 0.5, 11 + len, 1.15, 0, TAU);
+    x.fill();
+  }
+
+  authorSpr = c;
+  return c;
+}
+
+function drawAuthorMark() {
+  const m = authorMark;
+  if (m.x + 90 < cam.x || m.x - 90 > cam.x + view.w) return;
+  if (m.y + 50 < cam.y || m.y - 50 > cam.y + view.h) return;
+  const spr = makeAuthorSpr();
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  ctx.rotate(m.rot);
+  ctx.globalAlpha = 0.78;
+  ctx.drawImage(spr, -70, -30, 140, 61);
+  ctx.restore();
 }
 
 const OBS_H = 15;   // 掩体立体高度
@@ -2547,36 +2659,38 @@ function drawVignette() {
   }
 }
 
-/* 触屏瞄准指示：从玩家脚下射出一道渐隐的方向射线；
-   AUTO 模式下额外绘制锁定目标框（不按住摇杆也显示） */
-function drawTouchAim() {
-  if (!touchMode || !player || player.dead) return;
+/* 自动瞄准锁定框：桌面准星与触屏射线共用 */
+function drawAimLock() {
+  if (!autoAim || !touchLock || touchLock.dead || !player || player.dead) return;
+  if (state !== 'playing') return;
   const col = WEAPONS[player.wi].color;
-
-  if (touchAuto && touchLock && !touchLock.dead) {
-    const sx = touchLock.x - cam.x + cam.sx, sy = touchLock.y - cam.y + cam.sy;
-    const R = touchLock.r + 13;
+  const sx = touchLock.x - cam.x + cam.sx, sy = touchLock.y - cam.y + cam.sy;
+  const R = touchLock.r + 13;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.strokeStyle = TEX.rgba(col, 0.9);
+  ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = TEX.rgba(col, 0.55);
+  ctx.setLineDash([5, 7]);
+  ctx.beginPath(); ctx.arc(0, 0, R + 8, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+  for (let i = 0; i < 4; i++) {
     ctx.save();
-    ctx.translate(sx, sy);
-    ctx.strokeStyle = TEX.rgba(col, 0.9);
-    ctx.lineWidth = 1.6;
-    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = TEX.rgba(col, 0.55);
-    ctx.setLineDash([5, 7]);
-    ctx.beginPath(); ctx.arc(0, 0, R + 8, 0, TAU); ctx.stroke();
-    ctx.setLineDash([]);
-    for (let i = 0; i < 4; i++) {
-      ctx.save();
-      ctx.rotate(i * TAU / 4 + elapsed * 1.6);
-      ctx.beginPath();
-      ctx.moveTo(R - 11, 0); ctx.lineTo(R, -8); ctx.lineTo(R, 8); ctx.closePath();
-      ctx.fillStyle = TEX.rgba(col, 0.95); ctx.fill();
-      ctx.restore();
-    }
+    ctx.rotate(i * TAU / 4 + elapsed * 1.6);
+    ctx.beginPath();
+    ctx.moveTo(R - 11, 0); ctx.lineTo(R, -8); ctx.lineTo(R, 8); ctx.closePath();
+    ctx.fillStyle = TEX.rgba(col, 0.95); ctx.fill();
     ctx.restore();
   }
+  ctx.restore();
+}
 
+/* 触屏瞄准指示：从玩家脚下射出一道渐隐的方向射线 */
+function drawTouchAim() {
+  if (!touchMode || !player || player.dead) return;
   if (!aimStick.active) return;
+  const col = WEAPONS[player.wi].color;
   const len = 40 + Math.hypot(aimStick.x, aimStick.y) * 190;
   const sx = player.x + cam.x, sy = player.y + cam.y;
   const ex = sx + Math.cos(player.aim) * len, ey = sy + Math.sin(player.aim) * len;
@@ -2630,7 +2744,7 @@ function buildSlots() {
       '<div class="a">–</div>' +
       '<div class="wbar"><i style="width:0%"></i></div>' +
     '</div>').join('');
-  /* pointerdown：AUTO 连发时 click 容易被当成拖动吃掉；
+  /* pointerdown：自动发射连发时 click 容易被当成拖动吃掉；
      stopPropagation 防止触点穿透到底下的瞄准/移动摇杆 */
   for (const el of weaponsEl.children) {
     const go = e => {
@@ -3010,6 +3124,58 @@ function gameOver() {
   showPanel('dead', isBest);
 }
 
+/* ═══ 14.5 辅助瞄准 / 发射开关 ═══════════════════════════
+   两个开关独立：瞄准只管朝向，发射只管扣扳机。写入 na_save_v2。 */
+function assistBtnsHtml() {
+  return '<button class="mute' + (autoAim ? ' on' : '') + '" id="btnAutoAim">' +
+    (autoAim ? '自动瞄准 开' : '自动瞄准 关') + '</button>' +
+    '<button class="mute' + (autoFire ? ' on' : '') + '" id="btnAutoFire">' +
+    (autoFire ? '自动发射 开' : '自动发射 关') + '</button>';
+}
+function syncAssistUI() {
+  const pairs = [
+    ['hudAim', autoAim, autoAim ? 'AIM 开' : 'AIM'],
+    ['hudFire', autoFire, autoFire ? 'FIRE 开' : 'FIRE'],
+    ['touchAim', autoAim, autoAim ? 'AIM 开' : 'AIM'],
+    ['touchFire', autoFire, autoFire ? 'FIRE 开' : 'FIRE'],
+  ];
+  for (const [id, on, text] of pairs) {
+    const el = $(id);
+    if (!el) continue;
+    el.classList.toggle('on', on);
+    el.textContent = text;
+  }
+  const ov = $('overlay');
+  if (!ov) return;
+  const ba = ov.querySelector('#btnAutoAim');
+  if (ba) { ba.classList.toggle('on', autoAim); ba.textContent = autoAim ? '自动瞄准 开' : '自动瞄准 关'; }
+  const bf = ov.querySelector('#btnAutoFire');
+  if (bf) { bf.classList.toggle('on', autoFire); bf.textContent = autoFire ? '自动发射 开' : '自动发射 关'; }
+}
+function toggleAutoAim() {
+  autoAim = !autoAim;
+  save.autoAim = autoAim; persist();
+  if (!autoAim) touchLock = null;
+  syncAssistUI();
+  SFX.ui();
+  if (state === 'playing') {
+    showHint(autoAim
+      ? '已开启自动瞄准：锁定最近敌人 · 按住鼠标或右半屏可手动接管'
+      : '已关闭自动瞄准');
+  }
+}
+function toggleAutoFire() {
+  autoFire = !autoFire;
+  save.autoFire = autoFire; persist();
+  syncAssistUI();
+  SFX.ui();
+  if (state === 'playing') {
+    showHint(autoFire
+      ? '已开启自动发射：有敌人时持续开火'
+      : '已关闭自动发射');
+  }
+}
+
 /* ═══ 15. 面板 UI ═══════════════════════════════════════ */
 const CORNERS = '<i class="corner tl"></i><i class="corner tr"></i>' +
                 '<i class="corner bl"></i><i class="corner br"></i>';
@@ -3022,17 +3188,23 @@ const TAB_CONTROLS = `
   <div><kbd>Shift</kbd>/<kbd>空格</kbd></div><div>冲刺 — 0.26 秒无敌帧，1.15 秒冷却</div>
   <div><kbd>1</kbd>~<kbd>5</kbd>/<kbd>Q</kbd><kbd>E</kbd>/<kbd>滚轮</kbd></div><div>切换武器（Q/E 循环跳过无弹药槽位）</div>
   <div><kbd>Enter</kbd></div><div>上下文主操作 — 菜单开新局 / 暂停继续 / 阵亡重开</div>
-  <div><kbd>P</kbd>/<kbd>Esc</kbd></div><div>暂停 — 暂停面板内可切换关卡</div>
+  <div><kbd>P</kbd>/<kbd>Esc</kbd></div><div>暂停 — 暂停面板内可切换关卡、开关自动瞄准 / 自动发射</div>
   <div><kbd>R</kbd></div><div>重新开始当前关卡</div>
   <div><kbd>1</kbd>~<kbd>3</kbd>/<kbd>S</kbd></div><div>强化选择：1/2/3 选卡，S 跳过（+200 分）</div>
   <div><kbd>1</kbd>~<kbd>8</kbd></div><div>关卡选择界面直接数字键直达对应区域</div>
 </div>
+<h3>辅助开关（桌面 / 触屏通用，写入存档）</h3>
+<ul>
+  <li><em>自动瞄准</em>：枪口锁定最近敌人；方向键 / 右半屏 / 按住鼠标可随时手动接管</li>
+  <li><em>自动发射</em>：有敌人时持续开火，不必按住扳机；空场自动停火</li>
+  <li>两个都开 = 锁最近敌人并连发。局内桌面点右上 AIM / FIRE，触屏点拇指区同名按钮</li>
+</ul>
 <h3>触屏（手机 / 平板 · 横屏）</h3>
 <ul>
   <li>请将设备<em>横置</em>游玩；竖屏会提示旋转。Android / 鸿蒙 / 已安装的 PWA 会锁定横屏</li>
   <li>左半屏任意处按住拖动 = 移动摇杆；右半屏按住拖动 = 瞄准并开火</li>
-  <li><em>AUTO 按钮</em> 一键开启自动瞄准：武器自动锁定最近敌人持续开火，右半屏随时可手动接管</li>
-  <li><em>DASH</em> 按钮冲刺；<em>◀ ▶</em> 或底部武器条快速换枪（AUTO 连发时同样可点选切换）；右上角 ❚❚ 暂停</li>
+  <li><em>AIM</em> 自动瞄准、<em>FIRE</em> 自动发射，可分开开关；右半屏随时可手动接管瞄准</li>
+  <li><em>DASH</em> 按钮冲刺；<em>◀ ▶</em> 或底部武器条快速换枪（连发时同样可点选切换）；右上角 ❚❚ 暂停</li>
 </ul>
 <h3>物品</h3>
 <ul>
@@ -3411,6 +3583,7 @@ function showPanel(mode, isBest) {
         <button class="btn ghost" id="btnLevels">关卡选择</button>
         <button class="btn ghost" id="btnShop">商店</button>
         <span class="spacer"></span>
+        ${assistBtnsHtml()}
         <span class="gold-chip">${GOLD_ICO}${(save.gold | 0).toLocaleString('en-US')}</span>
         <span style="font-size:11px;letter-spacing:.16em;color:#7d8aa5">
           历史最高 ${best.toLocaleString('en-US')}</span>
@@ -3477,6 +3650,7 @@ function showPanel(mode, isBest) {
         <button class="btn ghost" id="btnLevels2">切换关卡</button>
         <button class="btn ghost" id="btnMenu">返回主菜单</button>
         <span class="spacer"></span>
+        ${assistBtnsHtml()}
         <button class="mute ${muted ? 'off' : ''}" id="btnMute">${muted ? '音效 关' : '音效 开'}</button>
       </div>`);
 
@@ -3589,6 +3763,8 @@ function showPanel(mode, isBest) {
     el.classList.toggle('off', muted);
     if (!muted) SFX.ui();
   });
+  bind('#btnAutoAim', () => { toggleAutoAim(); });
+  bind('#btnAutoFire', () => { toggleAutoFire(); });
 }
 
 function buildLevelGrid(ov) {
@@ -3809,27 +3985,24 @@ if (isTouch()) {
     el.addEventListener('touchstart', on, { passive: false });
     el.addEventListener('mousedown', on);
   };
-  bindTouchTap('#touchPrev', () => cycleWeapon(-1));
-  bindTouchTap('#touchNext', () => cycleWeapon(1));
-  /* AUTO 自动瞄准开关：开启后武器自动锁定最近敌人持续开火，
-     右手只需在需要手动转向时触碰右半屏 */
-  const elAuto = $('touchAuto');
-  if (elAuto) {
-    const toggle = e => {
-      e.preventDefault(); SFX.init(); SFX.resume();
-      touchAuto = !touchAuto;
-      elAuto.classList.toggle('on', touchAuto);
-      elAuto.textContent = touchAuto ? 'AUTO 开' : 'AUTO';
-      showHint(touchAuto
-        ? 'AUTO 模式：自动锁定最近敌人 · 触碰右半屏可手动接管瞄准'
-        : '已关闭自动瞄准');
-    };
-    elAuto.addEventListener('touchstart', toggle, { passive: false });
-    elAuto.addEventListener('mousedown', toggle);
-  }
+  bindTouchTap('touchPrev', () => cycleWeapon(-1));
+  bindTouchTap('touchNext', () => cycleWeapon(1));
   /* 部分浏览器（尤其 iOS Safari）只在用户手势后才允许 lock */
   window.addEventListener('touchend', lockLandscape, { once: true, passive: true });
 }
+
+/* AIM / FIRE：pointerdown 一次即可，避免 touchstart+mousedown 连点把开关打回去 */
+['hudAim', 'hudFire', 'touchAim', 'touchFire'].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    SFX.init(); SFX.resume();
+    if (id === 'hudAim' || id === 'touchAim') toggleAutoAim();
+    else toggleAutoFire();
+  });
+});
+syncAssistUI();
 
 /* ═══ 17. 启动 ══════════════════════════════════════════ */
 applyTheme(SECTORS[0].key);
@@ -3860,18 +4033,24 @@ window.__NA = {
   get perks() { return perks; },
   get pickups() { return pickups; },
   get cam() { return cam; },
+  get authorMark() { return authorMark; },
+  get arena() { return ARENA; },
   get mouse() { return mouse; },
   get keys() { return keys; },
   get weapons() { return WEAPONS; },
   get save() { return save; },
   get hitStop() { return hitStop; },
   get touchMode() { return touchMode; },
-  get touchAuto() { return touchAuto; },
+  get autoAim() { return autoAim; },
+  get autoFire() { return autoFire; },
+  get touchAuto() { return autoAim && autoFire; },
   get touchLock() { return touchLock; },
+  setAutoAim: v => { autoAim = !!v; save.autoAim = autoAim; persist(); if (!autoAim) touchLock = null; syncAssistUI(); },
+  setAutoFire: v => { autoFire = !!v; save.autoFire = autoFire; persist(); syncAssistUI(); },
   setTouchAuto: v => {
-    touchAuto = !!v;
-    const el = $('touchAuto');
-    if (el) { el.classList.toggle('on', touchAuto); el.textContent = touchAuto ? 'AUTO 开' : 'AUTO'; }
+    autoAim = autoFire = !!v;
+    save.autoAim = autoAim; save.autoFire = autoFire; persist();
+    syncAssistUI();
   },
   cycleWeapon,
   shopBuy, earnGold,

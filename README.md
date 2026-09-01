@@ -22,7 +22,7 @@ neonassault/
 │   ├── sprites.js          #    外部贴图加载与缓存
 │   ├── manifest.json       #    PWA 清单
 │   ├── sw.js               #    Service Worker（离线缓存）
-│   ├── icons/              #    PWA 图标
+│   ├── icons/              #    源图 na-cool-1024.png + 派生 PWA 图标
 │   └── assets/             #    精灵与贴图资源
 ├── electron/               #    桌面端外壳（mac / Win / Linux）
 │   ├── main.js             #    主进程：窗口、菜单、单实例锁
@@ -69,8 +69,11 @@ pnpm dev:web
 | 强化三选一 | `1` `2` `3`，跳过按 `S` |
 | 关卡选择界面直达 | `1` – `8` |
 | 查看操作说明 | `Tab` |
+| 自动瞄准 / 自动发射 | 右上 `AIM` / `FIRE`，或主菜单、暂停面板开关（写入存档） |
 
 > 方向键**只用于瞄准**（经典双摇杆手感）；瞄准时按 `WASD` 仍可移动，但方向键不会再让你走动。
+>
+> **辅助开关互相独立**：只开瞄准会对准最近敌人但仍需自己开火；只开发射会朝当前朝向连发；两个都开 = 锁定并持续开火。按住鼠标或触屏右半屏可随时手动接管瞄准。
 
 ### 触屏（横屏双摇杆）
 
@@ -78,7 +81,8 @@ pnpm dev:web
 
 - 左半屏：浮动虚拟摇杆移动
 - 右半屏：按住拖动瞄准并持续开火
-- `AUTO`：自动锁定最近敌人并持续开火，空场自动停火
+- `AIM`：自动瞄准最近敌人
+- `FIRE`：自动发射（空场停火）
 - `◀` `▶`：切换武器
 - `DASH`：冲刺
 
@@ -159,11 +163,13 @@ Chrome 已不再接受新的托管应用，PWA 是官方替代方案：直接用
 
 ## 图标
 
+源图：`web/icons/na-cool-1024.png`（脚本不会覆盖它）。
+
 ```bash
-pnpm icons:electron     # 需要 Pillow：pip install pillow
+pnpm icons:electron -- --force     # 需要 Pillow：pip install pillow
 ```
 
-会重新生成 PWA / Electron（icns·ico·png）/ Android / 鸿蒙四套图标。加 `--force` 强制重生成，加 `--redraw` 连源图一起重绘。
+会从源图派生 PWA（192 / 512 / maskable）、Electron（icns·ico·png）、Android mipmap、鸿蒙 media。加 `--redraw` 会忽略源图、改用几何 NA 占位。
 
 ---
 

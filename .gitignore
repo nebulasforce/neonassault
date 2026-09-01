@@ -34,3 +34,6 @@ harmonyos/.idea/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# 会话记忆，不入库
+.ai-memory/

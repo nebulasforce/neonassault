@@ -33,6 +33,8 @@ function resolveWebDir() {
 
 function resolveIcon() {
   const candidates = [
+    path.join(process.resourcesPath || '', 'web', 'icons', 'na-cool-1024.png'),
+    path.join(__dirname, '..', 'web', 'icons', 'na-cool-1024.png'),
     path.join(process.resourcesPath || '', 'web', 'icons', 'na-512.png'),
     path.join(__dirname, '..', 'web', 'icons', 'na-512.png'),
     path.join(__dirname, '..', 'build', 'icon.png'),

@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """霓虹突袭 · NEON ASSAULT 全平台图标生成器
 
-源图优先 web/icons/na-512.png，否则 na-192.png（同一套战机/坦克 lockup）。
-不会覆盖这两张源图。派生：
-  - PWA      na-maskable-{192,512}.png
+源图固定为 web/icons/na-cool-1024.png，不会覆盖它。
+派生：
+  - PWA      na-{192,512}.png、na-maskable-{192,512}.png
   - Electron electron/build/icon.icns、icon.ico、icon.png、icons/<n>x<n>.png
   - Android  mipmap-*/ic_launcher{,_round,_foreground}.png
   - 鸿蒙     app_icon / startIcon / foreground / background
@@ -35,8 +35,8 @@ FORCE = '--force' in sys.argv
 REDRAW = '--redraw' in sys.argv
 
 BG = (10, 12, 16, 255)
-SRC_512 = os.path.join('web', 'icons', 'na-512.png')
-SRC_192 = os.path.join('web', 'icons', 'na-192.png')
+SRC_MASTER = os.path.join('web', 'icons', 'na-cool-1024.png')
+PWA_SIZES = (192, 512)
 
 
 def hex_points(cx, cy, r):
@@ -99,29 +99,52 @@ def make_padded(src, size, pad_ratio=0.18, bg=BG):
     return canvas
 
 
+def as_square(img, bg=BG):
+    w, h = img.size
+    if w == h:
+        return img
+    side = max(w, h)
+    canvas = Image.new('RGBA', (side, side), bg)
+    canvas.paste(img, ((side - w) // 2, (side - h) // 2), img)
+    return canvas
+
+
+def sample_bg(img):
+    px = img.load()
+    w, h = img.size
+    pts = [(2, 2), (w - 3, 2), (2, h - 3), (w - 3, h - 3)]
+    r = g = b = 0
+    for x, y in pts:
+        c = px[x, y]
+        r += c[0]
+        g += c[1]
+        b += c[2]
+    n = len(pts)
+    return (r // n, g // n, b // n, 255)
+
+
 def load_lockup():
     if REDRAW:
-        img = draw_source(512)
+        img = draw_source(1024)
         print('源图已按几何 NA 重绘（--redraw）')
         return img
-    for path in (SRC_512, SRC_192):
-        if os.path.exists(path):
-            print('源图：' + path)
-            return Image.open(path).convert('RGBA')
-    os.makedirs(os.path.dirname(SRC_512), exist_ok=True)
-    img = draw_source(512)
-    img.save(SRC_512, optimize=True)
-    print('未找到 lockup，已回退绘制：' + SRC_512)
-    return img
+    if os.path.exists(SRC_MASTER):
+        print('源图：' + SRC_MASTER)
+        return as_square(Image.open(SRC_MASTER).convert('RGBA'))
+    sys.exit('未找到源图 ' + SRC_MASTER)
 
 
 SRC = load_lockup()
+BG = sample_bg(SRC)
 
 written = 0
 
-# PWA maskable：给圆裁切留边。na-192 / na-512 是用户源图，不覆盖。
-for sz in (192, 512):
-    if save(make_padded(SRC, sz, 0.12), f'web/icons/na-maskable-{sz}.png'):
+# PWA：从 1024 源图派生标准尺寸与 maskable（给圆裁切留边）。
+# na-cool-1024.png 是用户源图，不覆盖。
+for sz in PWA_SIZES:
+    if save(SRC.resize((sz, sz), Image.LANCZOS), f'web/icons/na-{sz}.png'):
+        written += 1
+    if save(make_padded(SRC, sz, 0.12, BG), f'web/icons/na-maskable-{sz}.png'):
         written += 1
 
 # Electron
@@ -155,9 +178,9 @@ if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.ico')):
                  sizes=[(s, s) for s in ICO_SIZES], append_images=imgs[1:])
     written += 1
 
-if save(SRC.resize((512, 512), Image.LANCZOS), os.path.join(BUILD, 'icon.png')):
+if save(SRC.resize((1024, 1024), Image.LANCZOS), os.path.join(BUILD, 'icon.png')):
     written += 1
-for s in (16, 32, 48, 64, 128, 256, 512):
+for s in (16, 32, 48, 64, 128, 256, 512, 1024):
     if save(SRC.resize((s, s), Image.LANCZOS), os.path.join(BUILD, 'icons', f'{s}x{s}.png')):
         written += 1
 
@@ -167,10 +190,11 @@ if os.path.isdir(RES):
     bg_xml = os.path.join(RES, 'values', 'ic_launcher_background.xml')
     os.makedirs(os.path.dirname(bg_xml), exist_ok=True)
     if FORCE or not os.path.exists(bg_xml):
+        hex_color = '#{:02X}{:02X}{:02X}'.format(*BG[:3])
         with open(bg_xml, 'w', encoding='utf-8') as f:
             f.write('<?xml version="1.0" encoding="utf-8"?>\n'
                     '<resources>\n'
-                    '    <color name="ic_launcher_background">#0A0C10</color>\n'
+                    f'    <color name="ic_launcher_background">{hex_color}</color>\n'
                     '</resources>\n')
         written += 1
 
@@ -216,5 +240,5 @@ if os.path.isdir(HM):
     if save(SRC.resize((512, 512), Image.LANCZOS), os.path.join(HM, 'app_icon.png')):
         written += 1
 
-print(f'图标生成完成，写入 {written} 个文件。')
+print(f'图标生成完成，写入 {written} 个文件。源图 {SRC_MASTER} 未改动。')
 print('提示：加 --force 强制重生成，加 --redraw 忽略源图重绘几何 NA。')
