@@ -76,9 +76,9 @@ bump_patch() {
 }
 
 tag_exists() {
-  local tag="$1"
-  git rev-parse -q --verify "refs/tags/$tag" >/dev/null 2>&1 && return 0
-  git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
+  local ref="$1"
+  git rev-parse -q --verify "refs/tags/${ref}" >/dev/null 2>&1 && return 0
+  git ls-remote --exit-code --tags origin "refs/tags/${ref}" >/dev/null 2>&1
 }
 
 commit_if_dirty() {
@@ -103,9 +103,9 @@ push_branch() {
 }
 
 push_tag() {
-  local tag="$1"
-  git tag -a "$tag" -m "$tag"
-  git push origin "$tag"
+  local ref="$1"
+  git tag -a "${ref}" -m "${ref}"
+  git push origin "${ref}"
 }
 
 case "$cmd" in
@@ -134,25 +134,26 @@ case "$cmd" in
     fi
     commit_if_dirty
     push_branch
-    tag="v$(pkg_version)"
-    if tag_exists "$tag"; then
-      echo "tag $tag 已存在。指定新版本：make release VERSION=x.y.z MSG=\"...\"" >&2
+    git_ref="v$(pkg_version)"
+    if tag_exists "${git_ref}"; then
+      echo "tag ${git_ref} 已存在。指定新版本：make release VERSION=x.y.z MSG=\"...\"" >&2
       exit 1
     fi
-    push_tag "$tag"
-    echo "已推送 $tag，GitHub Actions 正在打包："
+    push_tag "${git_ref}"
+    echo "已推送 ${git_ref}，GitHub Actions 正在打包："
     echo "https://github.com/nebulasforce/neonassault/actions"
-    echo "完成后：https://github.com/nebulasforce/neonassault/releases/tag/$tag"
+    echo "Release: https://github.com/nebulasforce/neonassault/releases/tag/${git_ref}"
     ;;
   tag)
     enable_proxy
-    tag="v$(pkg_version)"
-    if tag_exists "$tag"; then
-      echo "tag $tag 已存在。" >&2
+    git_ref="v$(pkg_version)"
+    if tag_exists "${git_ref}"; then
+      echo "tag ${git_ref} 已存在。" >&2
       exit 1
     fi
-    push_tag "$tag"
-    echo "已推送 $tag → https://github.com/nebulasforce/neonassault/releases/tag/$tag"
+    push_tag "${git_ref}"
+    echo "已推送 ${git_ref}"
+    echo "Release: https://github.com/nebulasforce/neonassault/releases/tag/${git_ref}"
     ;;
   *)
     usage >&2
