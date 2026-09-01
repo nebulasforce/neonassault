@@ -22,6 +22,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # configure-pages 在 Pages 尚未启用时会直接失败，所以「建站」必须排在它前面。
+      # 工作流内的 GITHUB_TOKEN 具备 pages: write，可免手动去 Settings 点一次。
+      - name: Ensure Pages site exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            try {
+              const { data } = await github.rest.repos.getPages({ owner, repo });
+              core.info(`Pages 已启用：${data.html_url || data.status || 'ok'}`);
+            } catch (err) {
+              if (err.status !== 404) throw err;
+              core.info('Pages 尚未启用，正在创建（build_type=workflow）…');
+              try {
+                await github.rest.repos.createPagesSite({
+                  owner, repo,
+                  build_type: 'workflow',
+                  source: { branch: 'main', path: '/' }
+                });
+                core.info('Pages 创建成功');
+              } catch (e) {
+                core.setFailed(
+                  '自动创建 Pages 失败。请在仓库 Settings → Pages → Source 选择 ' +
+                  `"GitHub Actions" 后重跑本工作流。错误：${e.message}`
+                );
+              }
+            }
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -45,34 +73,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # 首次部署时 Pages 站点可能尚未创建。仓库 Settings 里手动开启需要一次点击，
-      # 而工作流内的 GITHUB_TOKEN 具备 pages: write，可以在这里自动补上。
-      - name: Ensure Pages site exists
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            try {
-              const { data } = await github.rest.repos.getPages({ owner, repo });
-              core.info(`Pages 已启用：${data.html_url || data.status || 'ok'}`);
-            } catch (err) {
-              if (err.status !== 404) throw err;
-              core.info('Pages 尚未启用，正在创建（build_type=workflow）…');
-              try {
-                await github.rest.repos.createPagesSite({
-                  owner, repo,
-                  build_type: 'workflow',
-                  source: { branch: 'main', path: '/' }
-                });
-                core.info('Pages 创建成功');
-              } catch (e) {
-                core.warning(
-                  '自动创建 Pages 失败，请在仓库 Settings → Pages → Source 选择 "GitHub Actions" 后重跑本工作流。' +
-                  ` 错误：${e.message}`
-                );
-              }
-            }
-
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
