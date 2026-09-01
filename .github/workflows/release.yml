@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to attach this release to (e.g. v1.1.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -25,16 +30,17 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      # setup-node 的 cache: pnpm 会跑 `pnpm store`，在 lockfile v9 上会报
+      # "packages field missing or empty"。依赖缓存省不下多少时间，先关掉。
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: pnpm
 
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
@@ -60,6 +66,13 @@ jobs:
           cp "$UNI" dist-apk/neonassault-android-universal.apk
           ls -lh dist-apk
 
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neonassault-android-apk
+          path: dist-apk/neonassault-android-universal.apk
+          if-no-files-found: error
+
       - name: Sync HarmonyOS web assets
         run: node scripts/build-harmonyos.js
 
@@ -72,9 +85,17 @@ jobs:
             -x 'harmonyos/.idea/*' \
             -x 'harmonyos/**/.DS_Store'
 
+      - name: Upload HarmonyOS zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: neonassault-harmonyos-deveco
+          path: dist-hap/neonassault-harmonyos-deveco.zip
+          if-no-files-found: error
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
           files: |
             dist-apk/neonassault-android-universal.apk
