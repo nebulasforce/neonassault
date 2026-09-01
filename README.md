@@ -52,6 +52,22 @@ pnpm dev:web
 
 本地服务器是必须的：`file://` 协议下 Canvas 会被跨域污染，贴图无法读取。
 
+### 提交与发版
+
+本机没有 JDK / DevEco 时，用 GitHub Actions 打包。`127.0.0.1:7890` 有代理会自动走代理。
+
+```bash
+make push MSG="说明"                  # 提交并推送 → GitHub Pages
+make release MSG="说明"               # 提交 + 打 tag → APK / Windows / macOS / 鸿蒙 zip
+make release VERSION=1.2.2 MSG="说明" # 指定版本号
+make tag                              # 只打当前 package.json 版本的 tag
+```
+
+打包进度：<https://github.com/nebulasforce/neonassault/actions>  
+成品：<https://github.com/nebulasforce/neonassault/releases>
+
+鸿蒙 HAP 仍需本机 DevEco；CI 只提供已同步 `web/` 的工程 zip。
+
 ---
 
 ## 操控
