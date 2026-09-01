@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "霓虹突袭 · NEON ASSAULT — 跨平台双摇杆竞技场射击游戏",
   "private": true,
-  "author": "nebulasforce",
+  "author": "Alex Xing",
   "license": "MIT",
   "main": "electron/main.js",
   "homepage": "./",
@@ -37,7 +37,7 @@
   "build": {
     "appId": "com.nebulasforce.neonassault",
     "productName": "霓虹突袭 · NEON ASSAULT",
-    "copyright": "Copyright © 2026 nebulasforce",
+    "copyright": "Copyright © 2026 Alex Xing / nebulasforce",
     "directories": {
       "output": "dist-electron",
       "buildResources": "electron/build"

@@ -193,4 +193,4 @@ pnpm icons:electron     # 需要 Pillow：pip install pillow
 
 ## License
 
-MIT © nebulasforce
+MIT © 2026 Alex Xing / nebulasforce
