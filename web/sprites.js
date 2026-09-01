@@ -102,23 +102,11 @@ window.SPR = (function () {
   }
 
   /**
-   * 受击白闪：先画原图，再用 source-atop 叠一层白色高光
-   * 用于命中反馈，让贴图素材也有和程序化绘制一致的打击感
+   * 受击加亮已改走调用方的径向雾团（drawHitFog），这里只画原图。
+   * 绝不用 fillRect / source-atop：会把贴图矩形边框刷成实心白块。
    */
   function drawFlash(c, name, x, y, size, angle, alpha, white) {
-    if (!draw(c, name, x, y, size, angle, alpha, 0)) return false;
-    if (!(white > 0.01)) return true;
-    const im = imgs[name], h = size / 2;
-    c.save();
-    c.translate(x, y);
-    if (angle) c.rotate(angle);
-    c.globalAlpha = Math.min(1, white) * (alpha === undefined ? 1 : alpha);
-    c.drawImage(im, -h, -h, size, size);          // 先铺形状
-    c.globalCompositeOperation = 'source-atop';   // 只在实体范围内染色
-    c.fillStyle = '#fff';
-    c.fillRect(-h, -h, size, size);
-    c.restore();
-    return true;
+    return draw(c, name, x, y, size, angle, alpha, 0);
   }
 
   return { load, has, settled, progress, raw, draw, drawFlash, KEYS };

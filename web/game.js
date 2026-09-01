@@ -101,6 +101,19 @@ const PERKS = [
 ];
 const PI = {}; PERKS.forEach((p, i) => { PI[p.id] = i; });
 
+/* ═══ 6.6 商店（跨局永久强化，金币购买，写入存档） ═══════
+   cost/grow : 第 n 级价格 = cost + grow * n（n 从 0 起）
+   max       : 可叠层数；bonus 与局内强化共用 pval 聚合         */
+const SHOP_ITEMS = [
+  { id:'hull',   name:'纳米装甲', cn:'开局生命 +20',   color:'#9ae66e', cost:120, grow:40, max:5, bonus:{ hpBonus:20 } },
+  { id:'shield', name:'护盾电容', cn:'开局护盾 +15',   color:'#7df9ff', cost:100, grow:35, max:5, bonus:{ shBonus:15 } },
+  { id:'core',   name:'超载弹芯', cn:'伤害 +6%',       color:'#ff4d6d', cost:150, grow:50, max:5, bonus:{ dmgMult:0.06 } },
+  { id:'vec',    name:'矢量推进', cn:'移速 +5%',       color:'#7df9ff', cost:130, grow:40, max:5, bonus:{ spdMult:0.05 } },
+  { id:'mag',    name:'扩容弹仓', cn:'弹药上限 +15%',  color:'#ffe066', cost:110, grow:40, max:5, bonus:{ ammoMult:0.15 } },
+  { id:'cell',   name:'快速充能', cn:'护盾回复 +12%',  color:'#3fa9ff', cost:140, grow:45, max:5, bonus:{ shRegenMult:0.12 } },
+];
+const SI = {}; SHOP_ITEMS.forEach((it, i) => { SI[it.id] = i; });
+
 /* ═══ 6.8 成就系统 ═══════════════════════════════════════
    rarity : 0 青铜 / 1 白银 / 2 黄金 / 3 铂金（决定卡片与飘窗配色）
    stat   : 对应 save.ach 中的计数器；sectorClears 为派生值（已通关区域数）
@@ -254,18 +267,24 @@ const SFX = {
   unlock(){ this.tone(520,1040,0.16,'sine',0.15); setTimeout(()=>this.tone(780,1560,0.26,'sine',0.12),120); },
 };
 
-/* ═══ 4. 存档与状态 ═════════════════════════════════════ */
+/* ═══ 4. 存档与状态 ═════════════════════════════════════
+   localStorage na_save_v2：关卡解锁 / 最高分 / 金币 / 商店层数 / 成就 / 静音
+   购买与击杀即时写入，刷新或换端（同浏览器）可接着玩               */
 const SAVE_KEY = 'na_save_v2';
 function loadSave() {
   let s = null;
   try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
   const old = +(localStorage.getItem('na_best') || 0);
   if (!s || typeof s !== 'object') s = {};
+  const shop = (s.shop && typeof s.shop === 'object') ? s.shop : {};
+  SHOP_ITEMS.forEach(it => { if (typeof shop[it.id] !== 'number') shop[it.id] = 0; });
   return {
     unlocked: Math.max(1, Math.min(SECTORS.length, s.unlocked | 0 || 1)),
     best: Math.max(+s.best || 0, old),
     sec: (s.sec && typeof s.sec === 'object') ? s.sec : {},
     muted: !!s.muted,
+    gold: Math.max(0, s.gold | 0),
+    shop,
     ach: (s.ach && typeof s.ach === 'object') ? s.ach : {},
     achGot: (s.achGot && typeof s.achGot === 'object') ? s.achGot : {},
   };
@@ -341,12 +360,12 @@ function achTick() {
   if (runStats.comboMax) bumpMaxAch('bestCombo', runStats.comboMax);
 }
 
-let state = 'menu';                     // menu | levels | playing | paused | dead
+let state = 'menu';                     // menu | levels | shop | playing | paused | dead | perks
 let enemies = [], eBullets = [], pBullets = [], parts = [], beams = [];
 let pickups = [], portals = [], texts = [], obstacles = [], decals = [];
 let bombs = [];            // 空中单位投下的航弹
 let player = null, boss = null;
-let wave = 0, score = 0, best = save.best;
+let wave = 0, score = 0, best = save.best, runGold = 0;
 let spawnQueue = [], intermission = 0;
 let bossIntro = { active:false, boss:null, t:0 };          // Boss 出场仪式：横幅+屏闪+专属音效
 const BOSS_INTRO_DUR = 1.7;
@@ -379,14 +398,47 @@ function releaseSticks() {
   });
 }
 
-/* 强化数值聚合（当前局） */
+/* 强化数值聚合：局内强化 + 商店永久层数 */
 function pval(key, def) {
   let v = def;
   perks.forEach(p => {
     const b = p.bonus[key];
     if (b !== undefined) v += b * p.stacks;
   });
+  SHOP_ITEMS.forEach(it => {
+    const n = save.shop[it.id] | 0;
+    if (n && it.bonus[key]) v += it.bonus[key] * n;
+  });
   return v;
+}
+function shopStacks(id) { return save.shop[id] | 0; }
+function shopPrice(it) { return it.cost + it.grow * shopStacks(it.id); }
+function earnGold(n, x, y) {
+  n = n | 0;
+  if (n <= 0) return;
+  save.gold += n;
+  runGold += n;
+  persist();
+  if (x != null) floatText(x, y - 8, '+' + n + ' G', '#ffe066', 12, 'gold');
+}
+function shopBuy(id) {
+  const it = SHOP_ITEMS[SI[id]];
+  if (!it) return false;
+  const n = shopStacks(id);
+  if (n >= it.max) { showHint(it.name + ' 已满级'); return false; }
+  const price = shopPrice(it);
+  if (save.gold < price) { showHint('金币不足 · 还差 ' + (price - save.gold)); return false; }
+  save.gold -= price;
+  save.shop[id] = n + 1;
+  persist();
+  SFX.unlock();
+  showHint('已购置 ' + it.name + '  Lv.' + (n + 1));
+  if (player) {
+    refreshPlayerStats();
+    player.hp = Math.min(player.hpMax, player.hp);
+    player.sh = Math.min(player.shMax, player.sh);
+  }
+  return true;
 }
 let floorPat = null, panelPat = null, skyPat = null;
 const keys = Object.create(null);
@@ -712,6 +764,7 @@ function waveCleared() {
     intermission = 3.0;
   } else {
     SFX.wave(); banner('WAVE CLEAR', '+' + bonus + ' 分', '#9ae66e');
+    earnGold(20 + secWave() * 5, player.x, player.y);
     dropAt(player.x + rand(-90, 90), player.y + rand(-90, 90), 'heal');
     dropAt(player.x + rand(-120, 120), player.y + rand(-120, 120), 'ammo');
     if (secWave() % 2 === 0) dropWeapon();
@@ -738,6 +791,7 @@ function sectorClear() {
     showHint('已解锁 SECTOR ' + nx.n + ' · ' + TEX.theme(nx.key).cn);
   }
   persist();
+  earnGold(120, player ? player.x : 0, player ? player.y : 0);
 
   /* 通关型成就判定 */
   const guns = Object.keys(runStats.gunsUsed);
@@ -1446,6 +1500,7 @@ function damageEnemy(e, dmg, angle, knock, forceCrit) {
   const gained = Math.round((e.boss ? 3000 : e.t.score) * mult);
   score += gained;
   floatText(e.x, e.y - e.r - 12, '+' + gained, e.boss ? '#ffe066' : '#c7f0ff', e.boss ? 26 : 15, 'score');
+  earnGold(e.boss ? 80 : Math.max(2, Math.round((e.t.score || 100) / 40)), e.x, e.y);
   burst(e.x, e.y, e.boss ? 90 : 22, e.color, e.boss ? 720 : 380, e.boss ? 5 : 3.4, e.boss ? 0.9 : 0.45);
 
   if (e.boss) {
@@ -1770,6 +1825,12 @@ function drawPlayer() {
     ctx.shadowColor = theme.accent;
     ctx.shadowBlur = 8 + R * 0.34;
     usedSprite = SPR.drawFlash(ctx, 'player', 0, 0, R * 3.4, 0, blink ? 0.42 : 1, flash ? 0.85 : 0);
+    if (usedSprite && flash) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      drawHitFog(R);
+      ctx.restore();
+    }
     ctx.restore();
   }
 
@@ -1921,6 +1982,7 @@ function drawEnemies() {
         ctx.shadowBlur = 10 + e.r * 0.30;
         usedSprite = SPR.drawFlash(ctx, spr, 0, 0, e.r * 3.4, e.angle, 1, hit ? 0.85 : 0);
         ctx.restore();
+        if (usedSprite && hit) drawHitFog(e.r);
       }
       if (usedSprite) { ctx.restore(); continue; }
 
@@ -2127,6 +2189,13 @@ function drawAir() {
       ctx.shadowBlur = 9 + e.r * 0.34;
       okd = SPR.drawFlash(ctx, spr, x, y, size, e.angle, 1, e.hitT > 0 ? 0.85 : 0);
       ctx.restore();
+      if (okd && e.hitT > 0) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.globalCompositeOperation = 'lighter';
+        drawHitFog(e.r);
+        ctx.restore();
+      }
     }
     if (!okd) drawAirFallback(e, x, y, size);
 
@@ -2460,8 +2529,17 @@ function buildSlots() {
       '<div class="a">–</div>' +
       '<div class="wbar"><i style="width:0%"></i></div>' +
     '</div>').join('');
-  for (const el of weaponsEl.children)
-    el.addEventListener('click', () => { if (state === 'playing') switchWeapon(+el.dataset.i); });
+  /* pointerdown：AUTO 连发时 click 容易被当成拖动吃掉；
+     stopPropagation 防止触点穿透到底下的瞄准/移动摇杆 */
+  for (const el of weaponsEl.children) {
+    const go = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (state === 'playing') switchWeapon(+el.dataset.i);
+    };
+    el.addEventListener('pointerdown', go);
+  }
+  weaponsEl.addEventListener('pointerdown', e => e.stopPropagation());
   drawSlotIcons();
 }
 
@@ -2519,6 +2597,8 @@ function syncHUD() {
   $('enemyLeft').textContent = '敌军 ' + (enemies.length + spawnQueue.length + portals.length);
   $('scoreText').textContent = score.toLocaleString('en-US');
   $('bestText').textContent = 'BEST ' + Math.max(best, score).toLocaleString('en-US');
+  const gEl = $('goldText');
+  if (gEl) gEl.textContent = (save.gold | 0).toLocaleString('en-US');
   const mult = 1 + Math.floor(combo / 5) * 0.5;
   $('comboText').textContent = combo >= 2 ? combo + ' 连杀  ×' + mult.toFixed(1) : '';
   const cb = $('comboBar');
@@ -2662,13 +2742,13 @@ function frame(now) {
     }
   } else {
     acc = 0;
-    if (state === 'menu' || state === 'levels') {
+    if (state === 'menu' || state === 'levels' || state === 'shop') {
       cam.x += 26 * dt;
       if (cam.x > ARENA.w - view.w) cam.x = 0;
     }
   }
 
-  if (player && state !== 'menu' && state !== 'levels') {
+  if (player && state !== 'menu' && state !== 'levels' && state !== 'shop') {
     const tx = clamp(player.x - view.w / 2, 0, Math.max(0, ARENA.w - view.w));
     const ty = clamp(player.y - view.h / 2, 0, Math.max(0, ARENA.h - view.h));
     cam.x = lerp(cam.x, tx, 1 - Math.pow(0.0015, dt));
@@ -2766,11 +2846,15 @@ function newGame(sectorIdx) {
     player.ammo[w.id] = ammoMaxFor(w);
   }
   player.wi = 1;
+  refreshPlayerStats();
+  player.hp = player.hpMax;
+  player.sh = player.shMax;
 
   enemies = []; eBullets = []; pBullets = []; parts = []; beams = [];
   pickups = []; portals = []; texts = []; boss = null; bombs = [];
   wave = s * 5; score = 0; kills = 0; shotsFired = 0; shotsHit = 0;
   combo = 0; comboTimer = 0; hitStop = 0; intermission = 0; spawnQueue = [];
+  runGold = 0;
   slotsBuilt = false;
   cam.x = clamp(player.x - view.w / 2, 0, Math.max(0, ARENA.w - view.w));
   cam.y = clamp(player.y - view.h / 2, 0, Math.max(0, ARENA.h - view.h));
@@ -2840,12 +2924,13 @@ const TAB_CONTROLS = `
   <li>请将设备<em>横置</em>游玩；竖屏会提示旋转。Android / 鸿蒙 / 已安装的 PWA 会锁定横屏</li>
   <li>左半屏任意处按住拖动 = 移动摇杆；右半屏按住拖动 = 瞄准并开火</li>
   <li><em>AUTO 按钮</em> 一键开启自动瞄准：武器自动锁定最近敌人持续开火，右半屏随时可手动接管</li>
-  <li><em>DASH</em> 按钮冲刺；<em>◀ ▶</em> 或底部武器条快速换枪；右上角 ❚❚ 暂停</li>
+  <li><em>DASH</em> 按钮冲刺；<em>◀ ▶</em> 或底部武器条快速换枪（AUTO 连发时同样可点选切换）；右上角 ❚❚ 暂停</li>
 </ul>
 <h3>物品</h3>
 <ul>
   <li><em>十字</em> 恢复 30 生命 · <em>方块</em> 补充全武器弹药 · <em>圆环</em> 护盾充满</li>
   <li><em>六边形 W</em> 武器箱 — 掉落一把新武器并自动装满弹药</li>
+  <li><em>金币</em> 击杀与通关获得，主菜单「商店」购买永久强化，进度自动存档</li>
 </ul>
 <h3>要点</h3>
 <ul>
@@ -2903,6 +2988,23 @@ const TAB_DESIGN = `
 
 function panelShell(inner) {
   return CORNERS + inner;
+}
+
+function shopHtml() {
+  return SHOP_ITEMS.map(it => {
+    const n = shopStacks(it.id);
+    const maxed = n >= it.max;
+    const price = shopPrice(it);
+    const poor = !maxed && save.gold < price;
+    return '<button class="shop-card' + (maxed ? ' maxed' : poor ? ' poor' : '') +
+      '" data-id="' + it.id + '" style="--c:' + it.color + '"' +
+      (maxed ? ' disabled' : '') + '>' +
+      '<div class="shop-lv">' + (n ? 'Lv.' + n : '未购置') + (maxed ? ' · MAX' : '') + '</div>' +
+      '<div class="shop-name">' + it.name + '</div>' +
+      '<div class="shop-cn">' + it.cn + '</div>' +
+      '<div class="shop-price">' + (maxed ? '已满级' : '◆ ' + price) + '</div>' +
+    '</button>';
+  }).join('');
 }
 
 /* 成就墙：进度条 + 稀有度着色。已解锁卡片点亮，未解锁灰掉但仍显示进度 */
@@ -3194,7 +3296,9 @@ function showPanel(mode, isBest) {
       <div class="actions">
         <button class="btn" id="btnStart">开始游戏</button>
         <button class="btn ghost" id="btnLevels">关卡选择</button>
+        <button class="btn ghost" id="btnShop">商店</button>
         <span class="spacer"></span>
+        <span class="gold-chip">◆ ${(save.gold | 0).toLocaleString('en-US')}</span>
         <span style="font-size:11px;letter-spacing:.16em;color:#7d8aa5">
           历史最高 ${best.toLocaleString('en-US')}</span>
       </div>`);
@@ -3214,6 +3318,22 @@ function showPanel(mode, isBest) {
         <span style="font-size:11px;letter-spacing:.16em;color:#7d8aa5">
           成就 ${achCount()} / ${ACHIEVEMENTS.length}</span>
         <button class="mute" id="btnAch">成就墙</button>
+      </div>`);
+
+  } else if (mode === 'shop') {
+    html = panelShell(`
+      <h1 style="font-size:32px">武器工坊</h1>
+      <div class="sub">HANGAR SHOP &nbsp;·&nbsp; 永久强化，跨局保存</div>
+      <div class="lvbar">
+        <span class="t">击杀掉落金币 · 通关额外奖励 · 进度自动写入本地存档</span>
+        <span class="gold-chip">◆ ${(save.gold | 0).toLocaleString('en-US')}</span>
+      </div>
+      <div class="shop-grid" id="shopGrid">${shopHtml()}</div>
+      <div class="actions">
+        <button class="btn ghost" id="btnBack">返回主菜单</button>
+        <span class="spacer"></span>
+        <span style="font-size:11px;letter-spacing:.16em;color:#7d8aa5">
+          已保存至本机 localStorage</span>
       </div>`);
 
   } else if (mode === 'paused') {
@@ -3279,6 +3399,7 @@ function showPanel(mode, isBest) {
         <div class="stat"><div class="l">命中率</div><div class="v">${acc}%</div></div>
       </div>
       <div class="ach-run">本局达成：击杀 ${kills} · 最高连杀 ${runStats.comboMax} · BOSS ${runStats.bossKills}
+        &nbsp;·&nbsp; 金币 +${runGold}（余额 ${(save.gold | 0).toLocaleString('en-US')}）
         &nbsp;·&nbsp; 成就 ${achCount()} / ${ACHIEVEMENTS.length}</div>
       <div class="actions">
         <button class="btn" id="btnRetry">再来一局</button>
@@ -3326,6 +3447,7 @@ function showPanel(mode, isBest) {
   const start = i => { SFX.init(); SFX.resume(); SFX.ui(); newGame(i); };
   bind('#btnStart',  () => start(0));
   bind('#btnLevels', () => { SFX.ui(); setState('levels'); showPanel('levels'); });
+  bind('#btnShop',   () => { SFX.ui(); setState('shop'); showPanel('shop'); });
   bind('#btnLevels2',() => { SFX.ui(); setState('levels'); showPanel('levels'); });
   bind('#btnResume', resume);
   bind('#btnRestart',() => start(sector));
@@ -3341,6 +3463,11 @@ function showPanel(mode, isBest) {
   });
   ov.querySelectorAll('#perkGrid .perk-card').forEach((el, i) =>
     el.addEventListener('click', () => { SFX.ui(); pickPerk(i); }));
+  ov.querySelectorAll('#shopGrid .shop-card').forEach(el => {
+    el.addEventListener('click', () => {
+      if (shopBuy(el.dataset.id)) showPanel('shop');
+    });
+  });
   bind('#btnMute',   () => {
     SFX.setMuted(!muted);
     save.muted = muted; persist();
@@ -3398,6 +3525,7 @@ window.addEventListener('keydown', e => {
     if (state === 'playing') pause();
     else if (state === 'paused') resume();
     else if (state === 'levels') { SFX.ui(); setState('menu'); showPanel('menu'); }
+    else if (state === 'shop') { SFX.ui(); setState('menu'); showPanel('menu'); }
     else if (state === 'dead') { SFX.ui(); setState('menu'); showPanel('menu'); }
   }
   if (k === 'r' && (state === 'playing' || state === 'paused' || state === 'dead')) newGame(sector);
@@ -3631,6 +3759,10 @@ window.__NA = {
     if (el) { el.classList.toggle('on', touchAuto); el.textContent = touchAuto ? 'AUTO 开' : 'AUTO'; }
   },
   cycleWeapon,
+  shopBuy, earnGold,
+  get gold() { return save.gold; },
+  get shop() { return save.shop; },
+  get runGold() { return runGold; },
   skipPerk,
   get stick() { return stick; },
   get aimStick() { return aimStick; },

@@ -60,6 +60,8 @@ if ('serviceWorker' in navigator) {
             box-shadow:0 0 10px rgba(255,224,102,.7);margin:4px auto 0;transition:width .05s linear;opacity:0}
   #comboBar.on{opacity:1}
   #bestText{font-size:10px;letter-spacing:.2em;color:var(--dim);margin-top:1px}
+  #goldHud{font-size:11px;letter-spacing:.16em;color:var(--gold);margin-top:2px;
+           text-shadow:0 0 12px rgba(255,224,102,.55);font-variant-numeric:tabular-nums}
 
   .hud-tr{position:absolute;right:22px;top:20px;display:flex;flex-direction:column;
           align-items:flex-end;gap:8px}
@@ -92,7 +94,7 @@ if ('serviceWorker' in navigator) {
   .hud-label i{font-style:normal;color:#5d6a82}
 
   #weapons{position:absolute;right:22px;bottom:22px;display:flex;gap:8px;align-items:flex-end;
-           pointer-events:auto}
+           pointer-events:auto;z-index:6}
   .wslot{position:relative;width:76px;padding:8px 8px 9px;cursor:pointer;
          border:1px solid rgba(255,255,255,.10);background:rgba(6,11,22,.75);
          text-align:center;opacity:.42;transition:all .16s;overflow:hidden;backdrop-filter:blur(5px)}
@@ -209,6 +211,7 @@ if ('serviceWorker' in navigator) {
                      bottom:auto;width:168px}
   body.touch .hud-tc{top:max(6px, env(safe-area-inset-top))}
   body.touch #scoreText{font-size:22px}
+  body.touch #goldHud{font-size:10px}
   body.touch #bossBar{top:max(52px, calc(env(safe-area-inset-top) + 44px));bottom:auto;width:min(380px,42vw)}
   body.touch #weapons{right:auto;left:50%;transform:translateX(-50%);
                       bottom:max(10px, env(safe-area-inset-bottom));gap:4px}
@@ -294,6 +297,8 @@ if ('serviceWorker' in navigator) {
   body.touch .scard canvas{height:86px}
   body.touch .perks{gap:12px;margin:12px 0;flex:1 1 auto;min-height:0}
   body.touch .actions{margin-top:10px;flex-shrink:0}
+  body.touch .shop-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px;
+                        flex:1 1 auto;min-height:0;overflow-y:auto}
   @media (max-height:420px){
     body.touch .panel{padding:14px 20px 12px;max-height:96vh}
     body.touch h1{font-size:24px}
@@ -506,6 +511,29 @@ if ('serviceWorker' in navigator) {
   .ach-run{font-size:11px;letter-spacing:.14em;color:var(--dim);text-align:center;padding-top:14px;
            border-top:1px solid rgba(255,255,255,.07);margin-top:18px;line-height:1.7}
 
+  /* ── 商店 ── */
+  .gold-chip{font-size:13px;font-weight:800;letter-spacing:.12em;color:var(--gold);
+             text-shadow:0 0 14px rgba(255,224,102,.55);font-variant-numeric:tabular-nums}
+  .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:12px;
+             margin:8px 0 4px}
+  .shop-card{appearance:none;font:inherit;color:inherit;text-align:left;cursor:pointer;
+             padding:16px 14px 14px;border:1px solid rgba(255,255,255,.12);
+             background:rgba(8,14,26,.72);transition:.18s;position:relative;
+             display:flex;flex-direction:column;gap:4px}
+  .shop-card::before{content:'';position:absolute;left:0;right:0;top:0;height:2.5px;
+                     background:var(--c);box-shadow:0 0 12px var(--c)}
+  .shop-card:hover{border-color:var(--c);transform:translateY(-3px);
+                   box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 22px color-mix(in srgb,var(--c) 20%,transparent)}
+  .shop-card.poor{opacity:.55}
+  .shop-card.maxed{opacity:.72;cursor:default;filter:saturate(.7)}
+  .shop-card.maxed:hover{transform:none;box-shadow:none;border-color:rgba(255,255,255,.12)}
+  .shop-lv{font-size:9px;letter-spacing:.2em;color:var(--c);text-shadow:0 0 10px var(--c)}
+  .shop-name{font-size:16px;font-weight:800;letter-spacing:.04em;color:#e8f1ff}
+  .shop-cn{font-size:11px;color:#9fb0c8;letter-spacing:.04em}
+  .shop-price{font-size:13px;font-weight:800;color:var(--gold);margin-top:6px;
+              font-variant-numeric:tabular-nums;letter-spacing:.08em}
+  .shop-card.maxed .shop-price{color:var(--lime)}
+
   /* ── 图鉴页 ── */
   .cx-h{font-size:12px;letter-spacing:.22em;color:#e8f1ff;margin:22px 0 10px;
         display:flex;align-items:baseline;gap:10px}
@@ -556,6 +584,7 @@ if ('serviceWorker' in navigator) {
       <div id="comboText" data-page-node-id="ZChKg3H8yD5BmkV05Rja5H"></div>
       <div id="comboBar" data-page-node-id="comboBar01"></div>
       <div id="bestText" data-page-node-id="DHMB34uDrpAL1NFBVVOXRN">BEST 0</div>
+      <div id="goldHud">◆ <span id="goldText">0</span></div>
     </div>
 
     <div class="hud-tr" data-page-node-id="brpW9djMTNJjzEyWsYSTHL">
