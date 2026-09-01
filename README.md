@@ -1,5 +1,7 @@
 # 霓虹突袭 · NEON ASSAULT
 
+[![Deploy Web to GitHub Pages](https://github.com/nebulasforce/neonassault/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/nebulasforce/neonassault/actions/workflows/deploy-pages.yml)
+
 俯视角双摇杆竞技场生存射击：在霓虹废墟里清波次、抢补给、打 Boss，直到被打倒。
 
 一套 `web/` 代码，五端交付 —— **浏览器 / PWA / 桌面（mac·Win·Linux）/ Android / HarmonyOS**。
