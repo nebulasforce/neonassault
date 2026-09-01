@@ -2646,15 +2646,20 @@ function frame(now) {
   if (flash > 0) flash = Math.max(0, flash - dt * timeScale * 1.6);
 
   if (state === 'playing') {
-    if (aimStick.active && player) {
-      mouse.x = player.x - cam.x + aimStick.x * 260;
-      mouse.y = player.y - cam.y + aimStick.y * 260;
-      mouse.down = true;
+    /* 竖屏时冻结模拟，避免旋转提示底下继续挨打 */
+    if (touchMode && window.innerHeight > window.innerWidth) {
+      acc = 0;
+    } else {
+      if (aimStick.active && player) {
+        mouse.x = player.x - cam.x + aimStick.x * 260;
+        mouse.y = player.y - cam.y + aimStick.y * 260;
+        mouse.down = true;
+      }
+      acc += dt * timeScale;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 5) { step(STEP); acc -= STEP; }
+      if (guard >= 5) acc = 0;
     }
-    acc += dt * timeScale;
-    let guard = 0;
-    while (acc >= STEP && guard++ < 5) { step(STEP); acc -= STEP; }
-    if (guard >= 5) acc = 0;
   } else {
     acc = 0;
     if (state === 'menu' || state === 'levels') {
@@ -2830,8 +2835,9 @@ const TAB_CONTROLS = `
   <div><kbd>1</kbd>~<kbd>3</kbd>/<kbd>S</kbd></div><div>强化选择：1/2/3 选卡，S 跳过（+200 分）</div>
   <div><kbd>1</kbd>~<kbd>8</kbd></div><div>关卡选择界面直接数字键直达对应区域</div>
 </div>
-<h3>触屏（手机 / 平板）</h3>
+<h3>触屏（手机 / 平板 · 横屏）</h3>
 <ul>
+  <li>请将设备<em>横置</em>游玩；竖屏会提示旋转。Android / 鸿蒙 / 已安装的 PWA 会锁定横屏</li>
   <li>左半屏任意处按住拖动 = 移动摇杆；右半屏按住拖动 = 瞄准并开火</li>
   <li><em>AUTO 按钮</em> 一键开启自动瞄准：武器自动锁定最近敌人持续开火，右半屏随时可手动接管</li>
   <li><em>DASH</em> 按钮冲刺；<em>◀ ▶</em> 或底部武器条快速换枪；右上角 ❚❚ 暂停</li>
@@ -3478,6 +3484,7 @@ function stickKnob(knob, s) {
 }
 
 function touchStart(e) {
+  if (touchMode && window.innerHeight > window.innerWidth) return;
   SFX.init(); SFX.resume();
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
@@ -3523,6 +3530,17 @@ function touchEnd(e) {
 if (isTouch()) {
   touchMode = true;
   document.body.classList.add('touch');
+  const lockLandscape = () => {
+    const ori = screen.orientation;
+    if (ori && typeof ori.lock === 'function') {
+      ori.lock('landscape').catch(() => {});
+    }
+  };
+  lockLandscape();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') lockLandscape();
+  });
+  window.addEventListener('orientationchange', lockLandscape);
   if (elMove && elAim) {
     canvas.addEventListener('touchstart', touchStart, { passive: false });
     canvas.addEventListener('touchmove',  touchMove,  { passive: false });
@@ -3568,6 +3586,8 @@ if (isTouch()) {
     elAuto.addEventListener('touchstart', toggle, { passive: false });
     elAuto.addEventListener('mousedown', toggle);
   }
+  /* 部分浏览器（尤其 iOS Safari）只在用户手势后才允许 lock */
+  window.addEventListener('touchend', lockLandscape, { once: true, passive: true });
 }
 
 /* ═══ 17. 启动 ══════════════════════════════════════════ */

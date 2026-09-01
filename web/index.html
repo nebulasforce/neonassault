@@ -2,7 +2,7 @@
 <html lang="zh-CN" data-page-node-id="BtivhGLcd7aBEalW4kXi56">
 <head data-page-node-id="CFkFztu0A034Eo94OsOGEg">
 <meta charset="UTF-8" data-page-node-id="xPnuAD5xszLFxi14dET7oa">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,maximum-scale=1" data-page-node-id="UjoQ0yX5GPEd8jdthYsFJ6">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,maximum-scale=1,viewport-fit=cover" data-page-node-id="UjoQ0yX5GPEd8jdthYsFJ6">
 <meta name="theme-color" content="#05070f">
 <meta name="description" content="俯视角双摇杆竞技场生存射击：在霓虹废墟里清波次、抢补给、打 Boss，直到被打倒。">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -148,84 +148,162 @@ if ('serviceWorker' in navigator) {
              justify-content:center;font-size:10px;font-weight:800;color:#04070e;
              border:1px solid rgba(255,255,255,.2);box-shadow:0 0 10px currentColor}
 
-  /* ══════════ 移动端触屏 ══════════ */
+  /* ══════════ 触屏 · 横屏双摇杆 ══════════
+     默认按横屏编排：顶栏信息、左右拇指区、底中武器条。
+     竖屏只显示旋转提示，不提供竖版 HUD。 */
   #touchControls{position:absolute;inset:0;display:none;pointer-events:none;z-index:5}
   body.touch #touchControls{display:block}
   body.touch.playing #app{cursor:none}
-  body.touch .touch-stick{position:absolute;width:130px;height:130px;border-radius:50%;
+  body.touch .touch-stick{position:absolute;width:120px;height:120px;border-radius:50%;
                           border:2px solid rgba(255,255,255,.18);background:rgba(6,11,22,.42);
                           pointer-events:auto;touch-action:none;display:none}
   body.touch .touch-stick.on{display:block}
-  body.touch .touch-stick .knob{position:absolute;left:50%;top:50%;width:48px;height:48px;
-                                margin:-24px 0 0 -24px;border-radius:50%;
+  body.touch .touch-stick .knob{position:absolute;left:50%;top:50%;width:44px;height:44px;
+                                margin:-22px 0 0 -22px;border-radius:50%;
                                 background:rgba(125,249,255,.35);border:2px solid rgba(125,249,255,.7);
                                 box-shadow:0 0 18px rgba(125,249,255,.4);transition:transform .05s}
-  #stickMove{left:30px;bottom:30px}
-  #stickAim{right:30px;bottom:30px}
-  #touchDash{position:absolute;right:30px;bottom:182px;width:74px;height:74px;border-radius:50%;
+  #stickMove{left:max(18px, env(safe-area-inset-left));bottom:max(16px, env(safe-area-inset-bottom))}
+  #stickAim{right:max(18px, env(safe-area-inset-right));bottom:max(16px, env(safe-area-inset-bottom))}
+  #touchDash{position:absolute;right:max(22px, env(safe-area-inset-right));
+             bottom:max(142px, calc(env(safe-area-inset-bottom) + 126px));
+             width:64px;height:64px;border-radius:50%;
              pointer-events:auto;touch-action:none;border:2px solid rgba(199,125,255,.55);
-             background:rgba(199,125,255,.18);color:#e8f1ff;font-size:11px;font-weight:800;
+             background:rgba(199,125,255,.18);color:#e8f1ff;font-size:10px;font-weight:800;
              letter-spacing:.12em;box-shadow:0 0 22px rgba(199,125,255,.35)}
   #touchDash:active{background:rgba(199,125,255,.34);transform:scale(.94)}
   #touchDash.cool{opacity:.35}
-  /* 武器循环 ◀ ▶ 与 AUTO 自动瞄准开关（右侧竖排，避开 DASH 与瞄准摇杆） */
-  #touchPrev,#touchNext{position:absolute;right:118px;bottom:196px;width:60px;height:60px;
+  /* 换枪 / AUTO：横排靠在 DASH 左侧，少占高度 */
+  #touchPrev,#touchNext{position:absolute;
+             right:max(96px, calc(env(safe-area-inset-right) + 74px));
+             bottom:max(148px, calc(env(safe-area-inset-bottom) + 132px));
+             width:52px;height:52px;
              border-radius:50%;pointer-events:auto;touch-action:none;
              border:1.5px solid rgba(125,249,255,.5);background:rgba(8,16,30,.55);
-             color:#7df9ff;font-size:18px;font-weight:800;cursor:pointer;
+             color:#7df9ff;font-size:16px;font-weight:800;cursor:pointer;
              backdrop-filter:blur(3px);line-height:1}
-  #touchPrev{right:192px}
+  #touchPrev{right:max(156px, calc(env(safe-area-inset-right) + 134px))}
   #touchPrev:active,#touchNext:active{background:rgba(125,249,255,.3);transform:scale(.93)}
-  #touchAuto{position:absolute;right:118px;bottom:272px;width:134px;height:44px;border-radius:22px;
+  #touchAuto{position:absolute;
+             right:max(96px, calc(env(safe-area-inset-right) + 74px));
+             bottom:max(208px, calc(env(safe-area-inset-bottom) + 192px));
+             width:112px;height:38px;border-radius:19px;
              pointer-events:auto;touch-action:none;border:1.5px solid rgba(199,125,255,.55);
-             background:rgba(8,16,30,.55);color:#c77dff;font-size:12px;font-weight:800;
+             background:rgba(8,16,30,.55);color:#c77dff;font-size:11px;font-weight:800;
              letter-spacing:.16em;cursor:pointer;backdrop-filter:blur(3px);transition:.2s}
   #touchAuto.on{background:rgba(199,125,255,.3);color:#fff;border-color:#c77dff;
                 box-shadow:0 0 22px rgba(199,125,255,.55)}
   #touchAuto:active{transform:scale(.95)}
 
-  /* ── 触屏 HUD 重排：底部让给拇指，生命条移到左上 ── */
+  /* ── 横屏 HUD：顶栏信息，底部让给拇指 ── */
   body.touch #game{touch-action:none}
-  body.touch .hud-tl{left:14px;top:13px;gap:6px}
-  body.touch .hud-tr{right:14px;top:13px}
-  body.touch #pauseBtn{width:42px;height:42px;font-size:16px}
-  body.touch #minimap{width:118px;height:90px}
-  body.touch .hud-bl{left:14px;top:104px;bottom:auto;width:172px}
-  body.touch #scoreText{font-size:27px}
-  body.touch #bossBar{top:auto;bottom:104px;width:min(520px,84vw)}
-  body.touch #weapons{right:auto;left:50%;transform:translateX(-50%);bottom:12px;gap:4px}
-  body.touch .wslot{width:58px;padding:5px 5px 6px}
+  body.touch .hud-tl{left:max(10px, env(safe-area-inset-left));top:max(8px, env(safe-area-inset-top));
+                     gap:4px;flex-direction:row;flex-wrap:nowrap;max-width:48vw}
+  body.touch .pill{padding:5px 8px;white-space:nowrap}
+  body.touch .sec-no,body.touch .wave-v{font-size:13px}
+  body.touch .sec-cn,body.touch .wave-sub{font-size:10px}
+  body.touch .hud-tr{right:max(10px, env(safe-area-inset-right));top:max(8px, env(safe-area-inset-top));gap:6px}
+  body.touch .mm-label{display:none}
+  body.touch #pauseBtn{width:44px;height:44px;font-size:16px}
+  body.touch #minimap{width:100px;height:76px}
+  body.touch .hud-bl{left:max(10px, env(safe-area-inset-left));top:max(50px, calc(env(safe-area-inset-top) + 42px));
+                     bottom:auto;width:168px}
+  body.touch .hud-tc{top:max(6px, env(safe-area-inset-top))}
+  body.touch #scoreText{font-size:22px}
+  body.touch #bossBar{top:max(52px, calc(env(safe-area-inset-top) + 44px));bottom:auto;width:min(380px,42vw)}
+  body.touch #weapons{right:auto;left:50%;transform:translateX(-50%);
+                      bottom:max(10px, env(safe-area-inset-bottom));gap:4px}
+  body.touch .wslot{width:54px;padding:4px 4px 5px}
   body.touch .wslot .k{display:none}
   body.touch .wslot .n{font-size:9px}
-  body.touch .wslot .a{font-size:13px}
-  body.touch #perksHud{bottom:82px}
-  body.touch #hint{bottom:150px;font-size:10px;padding:5px 12px}
-  /* 触屏：右上角被雷达占用，飘窗下移到雷达下方 */
-  body.touch #achToasts{top:128px;right:12px;width:min(292px,72vw)}
+  body.touch .wslot .a{font-size:12px}
+  body.touch #perksHud{bottom:max(66px, calc(env(safe-area-inset-bottom) + 56px))}
+  body.touch #hint{bottom:auto;top:max(88px, calc(env(safe-area-inset-top) + 80px));font-size:10px;padding:5px 12px}
+  body.touch #banner .t{font-size:36px}
+  body.touch #achToasts{top:max(92px, calc(env(safe-area-inset-top) + 84px));
+                        right:max(10px, env(safe-area-inset-right));width:min(260px,36vw)}
 
-  /* ── 窄屏 / 竖屏进一步压缩 ── */
-  @media (max-width:760px){
-    body.touch .hud-bl{width:146px}
-    body.touch #minimap{width:96px;height:74px}
-    body.touch #bossBar{bottom:92px}
-    body.touch .wslot{width:52px;padding:4px 4px 5px}
+  /* ── 矮屏手机横置：进一步压高度 ── */
+  @media (max-height:500px){
+    body.touch .touch-stick{width:110px;height:110px}
+    body.touch .hud-bl{width:150px;top:max(44px, calc(env(safe-area-inset-top) + 36px))}
+    body.touch .hud-label{margin:4px 0 2px}
+    body.touch #minimap{width:84px;height:64px}
+    body.touch #bossBar{width:min(320px,38vw)}
+    body.touch .wslot{width:48px;padding:3px 3px 4px}
     body.touch .wslot .n{font-size:8px}
-    body.touch .wslot .a{font-size:12px}
+    body.touch .wslot .a{font-size:11px}
     body.touch .wslot .w-ico i{width:14px !important}
-    body.touch #weapons{gap:3px;bottom:8px}
-    body.touch #perksHud{bottom:72px}
-    body.touch #touchDash{width:64px;height:64px;right:22px;bottom:160px;font-size:10px}
-    body.touch #touchPrev,body.touch #touchNext{width:52px;height:52px;right:100px;bottom:170px;font-size:15px}
-    body.touch #touchPrev{right:164px}
-    body.touch #touchAuto{right:100px;bottom:234px;width:116px;height:40px;font-size:11px}
-    body.touch .touch-stick{width:120px;height:120px}
+    body.touch #weapons{gap:3px;bottom:max(8px, env(safe-area-inset-bottom))}
+    body.touch #perksHud{bottom:max(58px, calc(env(safe-area-inset-bottom) + 50px))}
+    body.touch #touchDash{width:56px;height:56px;font-size:9px;
+      right:max(18px, env(safe-area-inset-right));
+      bottom:max(128px, calc(env(safe-area-inset-bottom) + 112px))}
+    body.touch #touchPrev,body.touch #touchNext{width:46px;height:46px;font-size:14px;
+      right:max(82px, calc(env(safe-area-inset-right) + 64px));
+      bottom:max(132px, calc(env(safe-area-inset-bottom) + 116px))}
+    body.touch #touchPrev{right:max(134px, calc(env(safe-area-inset-right) + 116px))}
+    body.touch #touchAuto{right:max(82px, calc(env(safe-area-inset-right) + 64px));
+      bottom:max(186px, calc(env(safe-area-inset-bottom) + 170px));width:98px;height:34px;font-size:10px}
   }
-  @media (max-height:430px){
-    body.touch .hud-bl{width:140px;top:78px}
-    body.touch #minimap{width:88px;height:68px}
-    body.touch #bossBar{top:14px;bottom:auto;width:min(420px,52vw)}
-    body.touch #perksHud{bottom:66px}
-    body.touch #hint{bottom:auto;top:150px}
+  @media (max-height:380px){
+    body.touch .hud-label{display:none}
+    body.touch .hud-bl{width:136px;top:max(40px, calc(env(safe-area-inset-top) + 32px))}
+    body.touch #minimap{width:72px;height:54px}
+    body.touch #scoreText{font-size:18px}
+    body.touch #banner .t{font-size:26px}
+    body.touch #touchDash{width:48px;height:48px;
+      bottom:max(112px, calc(env(safe-area-inset-bottom) + 96px))}
+    body.touch #touchPrev,body.touch #touchNext{width:40px;height:40px;font-size:13px;
+      bottom:max(114px, calc(env(safe-area-inset-bottom) + 98px))}
+    body.touch #touchAuto{height:30px;bottom:max(162px, calc(env(safe-area-inset-bottom) + 146px))}
+    body.touch #hint{top:max(72px, calc(env(safe-area-inset-top) + 64px))}
+  }
+
+  /* ── 竖屏：遮罩提示旋转，不进入竖版布局 ── */
+  #rotateLock{display:none;position:fixed;inset:0;z-index:80;
+              flex-direction:column;align-items:center;justify-content:center;gap:18px;
+              background:radial-gradient(circle at 50% 42%,rgba(8,14,28,.94),rgba(2,4,9,.98));
+              color:var(--ink);text-align:center;pointer-events:auto;touch-action:none}
+  #rotateLock .phone-ico{width:46px;height:78px;border:2px solid var(--cyan);border-radius:8px;
+                         box-shadow:0 0 22px rgba(125,249,255,.45),inset 0 8px 0 rgba(125,249,255,.15);
+                         animation:spinToLand 1.8s ease-in-out infinite}
+  #rotateLock .rl-cn{font-size:18px;font-weight:800;letter-spacing:.2em;color:var(--cyan);
+                     text-shadow:0 0 18px rgba(125,249,255,.55)}
+  #rotateLock .rl-en{font-size:11px;letter-spacing:.28em;color:var(--dim)}
+  @keyframes spinToLand{
+    0%,28%{transform:rotate(0deg)}
+    52%,100%{transform:rotate(90deg)}
+  }
+  @media (orientation:portrait){
+    body.touch #rotateLock{display:flex}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #rotateLock .phone-ico{animation:none;transform:rotate(90deg)}
+  }
+
+  /* 触屏菜单：横屏短高，保持多列、压缩边距；正文滚动、底栏按钮始终可见 */
+  body.touch .panel{width:min(960px,96vw);max-height:94vh;padding:16px 22px 12px;
+                    display:flex;flex-direction:column;overflow:hidden}
+  body.touch h1{font-size:32px;flex-shrink:0}
+  body.touch .sub{margin:6px 0 10px;flex-shrink:0}
+  body.touch .lvbar{flex-shrink:0}
+  body.touch .pane{min-height:0;flex:1 1 auto;overflow-y:auto}
+  body.touch .tabs{flex-wrap:wrap;gap:0 4px;flex-shrink:0}
+  body.touch .levels{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;
+                     flex:1 1 auto;min-height:0;overflow-y:auto}
+  body.touch .scard canvas{height:86px}
+  body.touch .perks{gap:12px;margin:12px 0;flex:1 1 auto;min-height:0}
+  body.touch .actions{margin-top:10px;flex-shrink:0}
+  @media (max-height:420px){
+    body.touch .panel{padding:14px 20px 12px;max-height:96vh}
+    body.touch h1{font-size:24px}
+    body.touch .pane{min-height:0}
+    body.touch .perk-card{padding:12px 12px}
+    body.touch .scard canvas{height:64px}
+    body.touch .stats{margin:12px 0 4px;gap:8px}
+    body.touch .stat{padding:8px 10px}
+    body.touch .stat .v{font-size:20px}
+    body.touch .btn{padding:10px 22px}
   }
 
   /* ══════════ 覆盖层 ══════════ */
@@ -297,7 +375,7 @@ if ('serviceWorker' in navigator) {
 
   /* ── 强化选择 ── */
   .perks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
-  @media (max-width:720px){.perks{grid-template-columns:1fr}}
+  @media (max-width:720px) and (orientation:portrait){.perks{grid-template-columns:1fr}}
   .perk-card{position:relative;appearance:none;font:inherit;color:inherit;text-align:left;
              padding:22px 18px;border:1px solid rgba(255,255,255,.12);
              background:rgba(8,14,26,.72);cursor:pointer;transition:.18s;
@@ -517,6 +595,11 @@ if ('serviceWorker' in navigator) {
   </div>
 
   <div id="overlay" class="on" data-page-node-id="ugP34pWImF0HUPRX1eajHA"><div class="panel" id="panel" data-page-node-id="0I1gIr83BxRQDvhsMA5Zxa"></div></div>
+  <div id="rotateLock" aria-live="polite">
+    <div class="phone-ico" aria-hidden="true"></div>
+    <p class="rl-cn">请将设备旋转至横屏</p>
+    <p class="rl-en">LANDSCAPE REQUIRED</p>
+  </div>
 </div>
 <script src="textures.js"></script>
 <script src="sprites.js"></script>
