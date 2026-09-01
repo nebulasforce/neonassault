@@ -1,0 +1,102 @@
+{
+  "name": "neonassault",
+  "version": "1.0.0",
+  "description": "霓虹突袭 · NEON ASSAULT — 跨平台双摇杆竞技场射击游戏",
+  "private": true,
+  "author": "nebulasforce",
+  "license": "MIT",
+  "main": "electron/main.js",
+  "homepage": "./",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev:web": "python3 -m http.server 8901 -d web",
+    "dev:electron": "node scripts/dev-electron.js",
+    "build:web": "node scripts/build-web.js",
+    "build:electron": "electron-builder --mac --win --publish=never",
+    "build:electron:mac": "electron-builder --mac --publish=never",
+    "build:electron:win": "electron-builder --win --publish=never",
+    "build:electron:linux": "electron-builder --linux --publish=never",
+    "icons:electron": "node scripts/gen-icons.js",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "build:android": "node scripts/build-capacitor.js",
+    "build:android:release": "node scripts/build-capacitor.js --release",
+    "sync:harmonyos": "node scripts/build-harmonyos.js",
+    "build:harmonyos": "node scripts/build-harmonyos.js"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "electron": "^32.0.1",
+    "electron-builder": "^25.0.5"
+  },
+  "build": {
+    "appId": "com.nebulasforce.neonassault",
+    "productName": "霓虹突袭 · NEON ASSAULT",
+    "copyright": "Copyright © 2026 nebulasforce",
+    "directories": {
+      "output": "dist-electron",
+      "buildResources": "electron/build"
+    },
+    "files": [
+      "electron/**/*",
+      "web/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "web",
+        "to": "web",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "category": "public.app-category.games",
+      "icon": "electron/build/icon.icns",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/build/icon.ico"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/build/icons",
+      "category": "Game"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

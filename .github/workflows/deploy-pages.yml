@@ -1,0 +1,50 @@
+name: Deploy Web to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 只允许一个部署任务并发跑，但不取消进行中的部署
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # web/ 是纯静态资源，无需构建；这里只做一次完整性校验
+      - name: Verify web assets
+        run: |
+          test -f web/index.html || (echo "missing web/index.html" && exit 1)
+          test -f web/game.js   || (echo "missing web/game.js" && exit 1)
+          test -f web/manifest.json || (echo "missing web/manifest.json" && exit 1)
+          echo "web assets ok"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

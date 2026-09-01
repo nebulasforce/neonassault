@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "霓虹突袭 · NEON ASSAULT 鸿蒙封装模块"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "霓虹突袭主入口"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "霓虹突袭"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "appId": "com.nebulasforce.neonassault",
+  "appName": "霓虹突袭",
+  "webDir": "web",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "backgroundColor": "#05070f",
+    "overrideUserAgent": "Mozilla/5.0 (Linux; Android 14; NEON ASSAULT) AppleWebKit/537.36 Chrome Mobile Safari/537.36"
+  },
+  "ios": {
+    "backgroundColor": "#05070f",
+    "scrollEnabled": false,
+    "allowLinkPreview": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
