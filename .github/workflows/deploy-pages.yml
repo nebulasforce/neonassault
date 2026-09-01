@@ -9,7 +9,6 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  administration: write
 
 # 只允许一个部署任务并发跑，但不取消进行中的部署
 concurrency:
