@@ -1,5 +1,5 @@
 /* 霓虹突袭 · Service Worker — 离线缓存核心资源 */
-const CACHE_NAME = 'neon-assault-v7';
+const CACHE_NAME = 'neon-assault-v8';
 const CORE_ASSETS = [
   './',
   './index.html',

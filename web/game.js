@@ -492,14 +492,14 @@ function buildArena() {
     });
   }
 
-  /* 作者喷漆：贴在某个角落的空地上，避开掩体，开局看不见 */
+  /* 作者喷漆：偏角落的空地，避开出生点视野和场边暗角 */
   const corners = [
-    { x: 188, y: ARENA.h - 164, rot: -0.18 },
-    { x: ARENA.w - 198, y: ARENA.h - 158, rot: 0.14 },
-    { x: 192, y: 172, rot: 0.22 },
-    { x: ARENA.w - 204, y: 176, rot: -0.08 },
+    { x: 720, y: ARENA.h - 400, rot: -0.18 },
+    { x: ARENA.w - 740, y: ARENA.h - 390, rot: 0.14 },
+    { x: 730, y: 380, rot: 0.22 },
+    { x: ARENA.w - 750, y: 390, rot: -0.08 },
   ];
-  authorMark = corners.find(p => !inObstacle(p.x, p.y, 86)) || corners[0];
+  authorMark = corners.find(p => !inObstacle(p.x, p.y, 170)) || corners[0];
 }
 
 function inObstacle(x, y, pad) {
@@ -1725,11 +1725,11 @@ function drawDecals() {
   ctx.globalAlpha = 1;
 }
 
-/* 离屏缓存「ALEX」喷漆：过喷底晕 + 磨损字模 + 滴流，主题色换了才重画 */
+/* 离屏缓存作者喷漆：两行大字 + 喷雾颗粒 + 滴流，主题色换了才重画 */
 function makeAuthorSpr() {
   if (authorSpr && authorSprAccent === theme.accent) return authorSpr;
   authorSprAccent = theme.accent;
-  const W = 220, H = 96, dpr = 2;
+  const W = 640, H = 280, dpr = 2;
   const c = document.createElement('canvas');
   c.width = W * dpr; c.height = H * dpr;
   const x = c.getContext('2d');
@@ -1739,57 +1739,78 @@ function makeAuthorSpr() {
   for (let i = 0; i < seed.length; i++) { s ^= seed.charCodeAt(i); s = Math.imul(s, 16777619); }
   const r = () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; };
   const col = theme.accent;
+  const face = '800 {n}px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif';
 
   x.translate(W / 2, H / 2);
 
   /* 过喷底晕 */
-  const g = x.createRadialGradient(0, 6, 6, 0, 6, 78);
-  g.addColorStop(0, TEX.rgba(col, 0.22));
+  const g = x.createRadialGradient(0, 12, 16, 0, 12, 250);
+  g.addColorStop(0, TEX.rgba(col, 0.18));
   g.addColorStop(1, TEX.rgba(col, 0));
   x.fillStyle = g;
-  x.beginPath(); x.ellipse(0, 6, 78, 30, 0, 0, TAU); x.fill();
+  x.beginPath(); x.ellipse(0, 12, 270, 108, 0, 0, TAU); x.fill();
 
-  /* 散落喷点 */
+  /* 散落喷点（底层雾） */
   x.fillStyle = TEX.rgba(col, 1);
-  for (let i = 0; i < 70; i++) {
-    x.globalAlpha = 0.06 + r() * 0.16;
-    x.fillRect((r() - 0.5) * 148, (r() - 0.5) * 48, 0.7 + r() * 1.8, 0.7 + r() * 1.8);
+  for (let i = 0; i < 320; i++) {
+    x.globalAlpha = 0.04 + r() * 0.2;
+    x.fillRect((r() - 0.5) * 560, (r() - 0.5) * 210, 0.9 + r() * 3.2, 0.9 + r() * 3.2);
   }
 
-  /* 字模 */
-  x.globalAlpha = 0.34;
-  x.fillStyle = TEX.rgba(col, 1);
-  x.font = '800 26px system-ui,sans-serif';
   x.textAlign = 'center';
   x.textBaseline = 'middle';
-  x.fillText('ALEX', 0, -3);
-  x.globalAlpha = 0.12;
-  x.fillText('ALEX', 1.3, 0.4);
+  x.fillStyle = TEX.rgba(col, 1);
 
-  /* 磨损：抠掉几点，像旧喷漆掉皮 */
-  x.globalCompositeOperation = 'destination-out';
-  for (let i = 0; i < 14; i++) {
-    x.globalAlpha = 0.3 + r() * 0.55;
+  const sprayLine = (str, y, size) => {
+    x.font = face.replace('{n}', size);
+    for (let i = 0; i < 48; i++) {
+      x.globalAlpha = 0.03 + r() * 0.08;
+      x.fillText(str, (r() - 0.5) * 14, y + (r() - 0.5) * 9);
+    }
+    x.globalAlpha = 0.58;
+    x.fillText(str, 0, y);
+    x.globalAlpha = 0.16;
+    x.fillText(str, 2.6, y + 1.8);
+  };
+  sprayLine('Alex Xing', -32, 72);
+  sprayLine('邢浩轩', 46, 62);
+
+  /* 字边再喷一圈颗粒 */
+  x.fillStyle = TEX.rgba(col, 1);
+  for (let i = 0; i < 180; i++) {
+    x.globalAlpha = 0.08 + r() * 0.22;
+    const px = (r() - 0.5) * 420, py = (r() - 0.5) * 130;
     x.beginPath();
-    x.arc((r() - 0.5) * 64, (r() - 0.5) * 14, 0.7 + r() * 1.7, 0, TAU);
+    x.arc(px, py, 0.6 + r() * 1.8, 0, TAU);
+    x.fill();
+  }
+
+  /* 磨损掉皮 */
+  x.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 22; i++) {
+    x.globalAlpha = 0.2 + r() * 0.45;
+    x.beginPath();
+    x.arc((r() - 0.5) * 260, (r() - 0.5) * 80, 1 + r() * 2.8, 0, TAU);
     x.fill();
   }
   x.globalCompositeOperation = 'source-over';
 
   /* 滴流 */
-  x.globalAlpha = 0.22;
+  x.fillStyle = TEX.rgba(col, 1);
   x.strokeStyle = TEX.rgba(col, 1);
-  x.lineWidth = 1.35;
   x.lineCap = 'round';
-  const drips = [-30, -9, 12, 31];
+  const drips = [-220, -168, -110, -52, 8, 64, 122, 178, 228];
   for (let i = 0; i < drips.length; i++) {
-    const len = 7 + (i * 7) % 12;
+    const len = 18 + (i * 13) % 34;
+    const y0 = i % 2 === 0 ? 22 : 74;
+    x.globalAlpha = 0.3 + r() * 0.22;
+    x.lineWidth = 1.8 + r() * 1.8;
     x.beginPath();
-    x.moveTo(drips[i], 11);
-    x.lineTo(drips[i] + 0.5, 11 + len);
+    x.moveTo(drips[i], y0);
+    x.lineTo(drips[i] + (r() - 0.5) * 4, y0 + len);
     x.stroke();
     x.beginPath();
-    x.arc(drips[i] + 0.5, 11 + len, 1.15, 0, TAU);
+    x.arc(drips[i], y0 + len, 1.8 + r() * 1.2, 0, TAU);
     x.fill();
   }
 
@@ -1799,14 +1820,14 @@ function makeAuthorSpr() {
 
 function drawAuthorMark() {
   const m = authorMark;
-  if (m.x + 90 < cam.x || m.x - 90 > cam.x + view.w) return;
-  if (m.y + 50 < cam.y || m.y - 50 > cam.y + view.h) return;
+  if (m.x + 280 < cam.x || m.x - 280 > cam.x + view.w) return;
+  if (m.y + 130 < cam.y || m.y - 130 > cam.y + view.h) return;
   const spr = makeAuthorSpr();
   ctx.save();
   ctx.translate(m.x, m.y);
   ctx.rotate(m.rot);
-  ctx.globalAlpha = 0.78;
-  ctx.drawImage(spr, -70, -30, 140, 61);
+  ctx.globalAlpha = 0.86;
+  ctx.drawImage(spr, -250, -110, 500, 218);
   ctx.restore();
 }
 

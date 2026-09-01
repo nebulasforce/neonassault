@@ -173,9 +173,9 @@ if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.icns')):
 
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
 if FORCE or not os.path.exists(os.path.join(BUILD, 'icon.ico')):
-    imgs = [SRC.resize((s, s), Image.LANCZOS) for s in ICO_SIZES]
-    imgs[0].save(os.path.join(BUILD, 'icon.ico'), format='ICO',
-                 sizes=[(s, s) for s in ICO_SIZES], append_images=imgs[1:])
+    # 必须从大图写出，Pillow 会按 sizes 降采样。从 16×16 存会得到只有一档的坏 ico。
+    SRC.save(os.path.join(BUILD, 'icon.ico'), format='ICO',
+             sizes=[(s, s) for s in ICO_SIZES])
     written += 1
 
 if save(SRC.resize((1024, 1024), Image.LANCZOS), os.path.join(BUILD, 'icon.png')):
@@ -238,6 +238,12 @@ if os.path.isdir(HM):
     if save(SRC.resize((size, size), Image.LANCZOS), os.path.join(HM, 'startIcon.png')):
         written += 1
     if save(SRC.resize((512, 512), Image.LANCZOS), os.path.join(HM, 'app_icon.png')):
+        written += 1
+
+# AppScope 的 app.json5 引用 $media:app_icon
+HM_APP = os.path.join('harmonyos', 'AppScope', 'resources', 'base', 'media')
+if os.path.isdir(os.path.join('harmonyos', 'AppScope')):
+    if save(SRC.resize((512, 512), Image.LANCZOS), os.path.join(HM_APP, 'app_icon.png')):
         written += 1
 
 print(f'图标生成完成，写入 {written} 个文件。源图 {SRC_MASTER} 未改动。')
