@@ -16,7 +16,8 @@ assert.ok(!/canvas\.style\.width\s*=\s*view\.w/.test(game), '不得再把 canvas
 assert.ok(game.includes('function cssViewSize'), '视口须从 #app / visualViewport 读取');
 assert.ok(game.includes('function refreshPatterns'), '须能重建地面/天空 pattern');
 assert.ok(game.includes('refreshPatterns()'), '改 backing store 后须重建 pattern');
-assert.ok(game.includes('desynchronized: !iosLike'), 'iOS/iPad 不得开 desynchronized');
+assert.ok(game.includes('function wantDesyncCanvas'), '嵌入式 WebView 须单独决定是否开 desynchronized');
+assert.ok(game.includes('window.Capacitor'), 'Capacitor 安卓壳不得开 desynchronized');
 assert.ok(game.includes('theme.base'), '地面须有纯色兜底，pattern 失效时不能一片黑');
 
 console.log('test-canvas-viewport: ok');

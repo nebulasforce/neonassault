@@ -42,6 +42,11 @@ console.log('同步 web/ -> harmonyos/.../rawfile/web ...');
 fs.rmSync(rawDir, { recursive: true, force: true });
 copyRecursive(webDir, rawDir);
 
+if (!fs.existsSync(path.join(rawDir, 'assets', 'player.webp'))) {
+  console.error('鸿蒙 rawfile 缺少 assets/player.webp');
+  process.exit(1);
+}
+
 const kb = n => (n / 1024).toFixed(1) + ' KB';
 console.log(`同步完成：${stats.files} 个文件，${kb(stats.bytes)}`);
 console.log('');

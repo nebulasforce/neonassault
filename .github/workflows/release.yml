@@ -47,6 +47,8 @@ jobs:
         run: |
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
           npx cap sync android
+          test -f android/app/src/main/assets/public/assets/player.webp
+          grep -q 'function wantDesyncCanvas' android/app/src/main/assets/public/game.js
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace

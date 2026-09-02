@@ -160,7 +160,7 @@ export NA_KEY_PASSWORD=xxx
 pnpm build:android:release
 ```
 
-已做的 Android 适配：`hardwareAccelerated`（Canvas 必需）、`isGame`、`screenOrientation=landscape`、`resizeableActivity=false`。
+已做的 Android 适配：Activity 硬件加速开、WebView **不要**整页 `LAYER_TYPE_HARDWARE`（否则全屏 Canvas 会黑）、`isGame`、`sensorLandscape`、`resizeableActivity=false`。打包装前必须 `npx cap sync android`，`assets/public` 不进 git。
 
 ### 4. HarmonyOS（鸿蒙）
 

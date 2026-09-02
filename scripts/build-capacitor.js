@@ -31,6 +31,21 @@ if (!fs.existsSync(androidDir)) {
 // 1) 把最新的 web/ 同步进 android/app/src/main/assets/public
 run('npx cap sync android');
 
+const pub = path.join(androidDir, 'app', 'src', 'main', 'assets', 'public');
+const must = ['index.html', 'game.js', 'sprites.js', 'textures.js', 'assets/player.webp'];
+for (const f of must) {
+  const p = path.join(pub, f);
+  if (!fs.existsSync(p)) {
+    console.error('cap sync 后缺少文件，无法打安卓包：' + f);
+    process.exit(1);
+  }
+}
+const syncedGame = fs.readFileSync(path.join(pub, 'game.js'), 'utf8');
+if (!syncedGame.includes('function wantDesyncCanvas') || !syncedGame.includes('function cssViewSize')) {
+  console.error('android assets/public/game.js 不是当前 web/ 的战场画布修复版，请重新 cap sync');
+  process.exit(1);
+}
+
 const release = process.argv.includes('--release');
 const gradlew = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
 const task = release ? 'assembleRelease' : 'assembleDebug';

@@ -178,11 +178,19 @@ const ARENA_SIZES = [
 
 /* ═══ 2. 画布 ═══════════════════════════════════════════ */
 const canvas = $('game');
-/* iOS / iPad WebKit 上 desynchronized 会出现空白画布；桌面与安卓仍走低延迟 */
-const iosLike = /iPad|iPhone|iPod/.test(navigator.userAgent || '')
-  || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1)
-  || (/Macintosh/.test(navigator.userAgent || '') && (navigator.maxTouchPoints || 0) > 1);
-const ctx = canvas.getContext('2d', { alpha: false, desynchronized: !iosLike });
+/* 嵌入式 WebView（安卓 / 鸿蒙 / iOS）不要开 desynchronized：
+   低延迟提交在系统 WebView 里经常不送进合成器，全屏 Canvas 会一直是黑的，
+   旁边小的雷达 Canvas 却还能画。桌面浏览器才走低延迟。 */
+function wantDesyncCanvas() {
+  if (window.Capacitor) return false;
+  const ua = navigator.userAgent || '';
+  if (/Android|HarmonyOS|OpenHarmony|HUAWEI|iPad|iPhone|iPod/i.test(ua)) return false;
+  if (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1) return false;
+  return true;
+}
+const ctx = wantDesyncCanvas()
+  ? canvas.getContext('2d', { alpha: false, desynchronized: true })
+  : canvas.getContext('2d', { alpha: false });
 const ARENA = { w: 2600, h: 2000 };
 const view = { w: 0, h: 0, dpr: 0 };
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
