@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070f">
+<meta name="description" content="霓虹突袭作战简报：操作、武器、敌人、区域与核心循环。">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/na-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/na-512.png">
+<link rel="apple-touch-icon" href="icons/na-192.png">
+<title>作战简报 · 霓虹突袭</title>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function(){});
+  });
+}
+</script>
+<style>
+  :root{
+    --bg:#05070f; --cyan:#7df9ff; --magenta:#ff4d6d; --violet:#c77dff;
+    --lime:#9ae66e; --gold:#ffe066; --ink:#e8f1ff; --dim:#7d8aa5;
+    --accent:#7df9ff;
+    --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    --grid:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M40 0H0v40' fill='none' stroke='%237df9ff' stroke-opacity='.07' stroke-width='1'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;scroll-padding-top:84px}
+  body{
+    min-height:100%;background:
+      radial-gradient(1200px 640px at 12% -10%,rgba(125,249,255,.08),transparent 55%),
+      radial-gradient(900px 520px at 110% 8%,rgba(255,77,109,.08),transparent 50%),
+      var(--bg);
+    color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;line-height:1.7}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;background-image:var(--noise);opacity:.035;mix-blend-mode:overlay;z-index:0}
+  body::after{content:'';position:fixed;inset:0;pointer-events:none;background-image:var(--grid);opacity:.55;z-index:0}
+  a{color:var(--cyan)}
+  .top{
+    position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:14px 28px;border-bottom:1px solid rgba(255,255,255,.1);
+    background:rgba(5,7,15,.88);backdrop-filter:blur(12px)}
+  .brand{display:flex;flex-direction:column;gap:2px;min-width:160px}
+  .brand b{font-size:15px;letter-spacing:.22em}
+  .brand span{font-size:9px;letter-spacing:.32em;color:var(--dim)}
+  nav{display:flex;flex-wrap:wrap;gap:4px 2px;flex:1}
+  nav a{color:var(--dim);text-decoration:none;font-size:11px;letter-spacing:.16em;padding:8px 10px;
+        border:1px solid transparent}
+  nav a:hover,nav a:focus-visible{color:var(--cyan);border-color:rgba(125,249,255,.35);outline:none}
+  .go{appearance:none;font:inherit;text-decoration:none;font-size:12px;letter-spacing:.22em;
+      padding:11px 22px;border:1px solid var(--cyan);color:var(--cyan);
+      background:rgba(125,249,255,.1);transition:background .16s,color .16s,box-shadow .16s}
+  .go:hover{background:var(--cyan);color:#04070e;box-shadow:0 0 24px rgba(125,249,255,.45)}
+  .wrap{position:relative;z-index:1;width:min(980px,94vw);margin:0 auto;padding:42px 0 80px}
+  .stamp{font-size:10px;letter-spacing:.38em;color:var(--magenta);margin-bottom:10px}
+  h1{font-size:clamp(32px,6vw,52px);font-weight:900;letter-spacing:.1em;line-height:1.05;
+     background:linear-gradient(96deg,#7df9ff,#c77dff 48%,#ff4d6d);
+     -webkit-background-clip:text;background-clip:text;color:transparent;
+     filter:drop-shadow(0 0 26px rgba(125,249,255,.28))}
+  .lede{font-size:16px;color:#c3cee0;max-width:46em;margin:16px 0 36px}
+  section{margin:48px 0;padding:28px 28px 24px;border:1px solid rgba(255,255,255,.1);
+          background:linear-gradient(160deg,rgba(16,26,46,.78),rgba(6,10,20,.86));
+          position:relative}
+  section::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent);
+                  box-shadow:0 0 12px var(--accent)}
+  h2{font-size:13px;letter-spacing:.28em;color:var(--cyan);margin-bottom:14px}
+  h3{font-size:12px;letter-spacing:.18em;color:var(--gold);margin:18px 0 8px}
+  p,li{color:#c3cee0;font-size:14px}
+  p+p{margin-top:8px}
+  ul{list-style:none;margin:8px 0}
+  li{padding-left:16px;position:relative;margin-bottom:6px}
+  li::before{content:"\203A";position:absolute;left:0;color:var(--cyan)}
+  em{font-style:normal;color:var(--gold)}
+  kbd{display:inline-block;min-width:22px;text-align:center;padding:2px 7px;margin:0 2px;
+      border:1px solid rgba(125,249,255,.3);background:rgba(125,249,255,.07);
+      font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--cyan)}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;align-items:center;font-size:13.5px;margin:10px 0 6px}
+  .keys>div:nth-child(even){color:#a9b6cc}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 12px}
+  th,td{text-align:left;padding:8px 8px;border-bottom:1px solid rgba(255,255,255,.07)}
+  th{font-size:10px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  td:first-child{white-space:nowrap}
+  .sw{display:inline-block;width:8px;height:8px;margin-right:7px;vertical-align:middle;box-shadow:0 0 8px currentColor}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
+  .card{padding:14px 14px 12px;border:1px solid rgba(255,255,255,.1);background:rgba(8,14,26,.55)}
+  .card b{display:block;font-size:15px;letter-spacing:.04em;margin-bottom:4px}
+  .card span{display:block;font-size:10px;letter-spacing:.18em;color:var(--dim);margin-bottom:8px}
+  .card p{font-size:12.5px;line-height:1.55}
+  .foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+        margin-top:28px;padding-top:22px;border-top:1px solid rgba(255,255,255,.1)}
+  .note{font-size:12px;color:var(--dim);letter-spacing:.04em}
+  @media (max-width:720px){
+    .top{padding:12px 16px}
+    .wrap{padding:28px 0 64px}
+    section{padding:20px 16px}
+    .keys{grid-template-columns:1fr;gap:4px}
+    td:first-child{white-space:normal}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>霓虹突袭</b><span>MISSION BRIEFING</span></div>
+  <nav>
+    <a href="#loop">循环</a>
+    <a href="#controls">操作</a>
+    <a href="#weapons">武器</a>
+    <a href="#enemies">敌人</a>
+    <a href="#sectors">区域</a>
+  </nav>
+  <a class="go" href="index.html">开始游戏</a>
+</header>
+
+<main class="wrap">
+  <p class="stamp">CLASSIFIED · SECTOR BRIEF 01</p>
+  <h1>作战简报</h1>
+  <p class="lede">俯视角双摇杆竞技场生存射击：在霓虹废墟里清波次、抢补给、打 Boss，直到被打倒。每个区域 5 波，第 5 波为 Boss 战；通关后自动进入下一区域。</p>
+
+  <section id="loop">
+    <h2>核心循环 / LOOP</h2>
+    <ul>
+      <li><em>30 秒循环</em>：走位躲弹 → 找掩体回盾 → 清怪捡补给 → 换更强武器</li>
+      <li><em>5 波循环</em>：常规波积累资源 → Boss 波检验构筑 → 掉落新武器开启下一轮</li>
+      <li><em>风险回报</em>：连杀倍率要贴身打，回盾要脱离接触，两者形成拉扯</li>
+    </ul>
+    <h3>三个设计支点</h3>
+    <ul>
+      <li><em>冲刺无敌帧</em> — 让「被围住」变成一个可解的操作题，而不是必死局</li>
+      <li><em>掩体双向阻挡</em> — 敌人子弹也被挡，玩家可以利用地形「卡视野」逐个击破</li>
+      <li><em>传送门预警</em> — 所有敌人生成前 0.62 秒有可见传送动画，杜绝不公平秒杀</li>
+    </ul>
+  </section>
+
+  <section id="controls">
+    <h2>操作与规则 / CONTROLS</h2>
+    <div class="keys">
+      <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div><div>移动（方向键仅在未瞄准时兼作移动）</div>
+      <div><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div><div>瞄准 + 自动开火（纯键盘玩法，走位与瞄准互不干扰）</div>
+      <div><kbd>鼠标</kbd>/<kbd>左键</kbd></div><div>瞄准 / 开火（连发武器可长按）</div>
+      <div><kbd>Shift</kbd>/<kbd>空格</kbd></div><div>冲刺 — 0.26 秒无敌帧，1.15 秒冷却</div>
+      <div><kbd>1</kbd>~<kbd>5</kbd>/<kbd>Q</kbd><kbd>E</kbd>/<kbd>滚轮</kbd></div><div>切换武器（Q/E 循环跳过无弹药槽位）</div>
+      <div><kbd>Enter</kbd></div><div>上下文主操作 — 菜单开新局 / 暂停继续 / 阵亡重开</div>
+      <div><kbd>P</kbd>/<kbd>Esc</kbd></div><div>暂停 — 暂停面板可切换关卡、开关自动瞄准 / 自动发射</div>
+      <div><kbd>R</kbd></div><div>重新开始当前关卡</div>
+      <div><kbd>1</kbd>~<kbd>3</kbd>/<kbd>S</kbd></div><div>强化选择：1/2/3 选卡，S 跳过（+200 分）</div>
+      <div><kbd>1</kbd>~<kbd>8</kbd></div><div>关卡选择界面直接数字键直达对应区域</div>
+    </div>
+    <h3>辅助开关（桌面 / 触屏通用，写入存档）</h3>
+    <ul>
+      <li><em>自动瞄准</em>：枪口锁定最近敌人；方向键 / 右半屏拖动摇杆 / 按住并拖动鼠标可手动接管（单击开火不会抢走瞄准）</li>
+      <li><em>自动发射</em>：有敌人时持续开火，不必按住扳机；空场自动停火</li>
+      <li>两个都开 = 锁最近敌人并连发。局内桌面点右上 AIM / FIRE，触屏点底栏中央同名按钮</li>
+    </ul>
+    <h3>触屏（手机 / 平板 · 横屏）</h3>
+    <ul>
+      <li>请将设备<em>横置</em>游玩；竖屏会提示旋转。Android / 鸿蒙 / 已安装的 PWA 会锁定横屏</li>
+      <li>左半屏任意处按住拖动 = 移动摇杆；右半屏按住拖动 = 瞄准并开火（点按不改朝向，可配合自动瞄准）</li>
+      <li>右侧拇指区只保留瞄准摇杆与 <em>DASH</em> 冲刺；右半屏拖动才接管瞄准，点按只开火</li>
+      <li>底栏中央 <em>AIM</em> / <em>FIRE</em> 开关辅助瞄准与自动发射；底部武器条两侧 <em>◀ ▶</em> 换枪（也可点武器槽）；右上角 ❚❚ 暂停</li>
+    </ul>
+    <h3>物品</h3>
+    <ul>
+      <li><em>十字</em> 恢复 30 生命 · <em>方块</em> 补充全武器弹药 · <em>圆环</em> 护盾充满</li>
+      <li><em>六边形 W</em> 武器箱 — 掉落一把新武器并自动装满弹药</li>
+      <li><em>金币</em> 击杀与通关获得，主菜单「商店」购买永久强化，进度自动存档</li>
+    </ul>
+    <h3>要点</h3>
+    <ul>
+      <li>护盾先于生命承伤，脱战 5 秒后自动回充 — <em>打完一波主动撤退回盾</em>是核心节奏</li>
+      <li>掩体会挡住敌我双方的子弹，绕柱子打可以躲掉狙击手的蓄力射线</li>
+      <li><em>任意门</em>：场上成对出现的传送门，飞入一侧会从另一侧出来（小地图上同色椭圆）</li>
+      <li>连杀每 5 次提升 0.5 倍分数加成，中断计时 3 秒</li>
+    </ul>
+  </section>
+
+  <section id="weapons">
+    <h2>武器 / WEAPONS</h2>
+    <table>
+      <tr><th>武器</th><th>单发</th><th>射速</th><th>DPS</th><th>弹药</th><th>定位</th></tr>
+      <tr><td><span class="sw" style="background:#7df9ff;color:#7df9ff"></span>脉冲枪</td><td>26</td><td>6.3/s</td><td>162</td><td>∞</td><td>机载标配，永不缺弹</td></tr>
+      <tr><td><span class="sw" style="background:#ffe066;color:#ffe066"></span>撕裂者</td><td>13</td><td>15.4/s</td><td>200</td><td>260</td><td>机炮压制，弹药消耗快</td></tr>
+      <tr><td><span class="sw" style="background:#ff8a5c;color:#ff8a5c"></span>爆裂霰弹</td><td>15×8</td><td>1.6/s</td><td>193</td><td>44</td><td>近距清场 + 击退</td></tr>
+      <tr><td><span class="sw" style="background:#c77dff;color:#c77dff"></span>棱镜激光</td><td>17</td><td>14.3/s</td><td>243</td><td>220</td><td>穿透射线，直线高伤</td></tr>
+      <tr><td><span class="sw" style="background:#ff4d6d;color:#ff4d6d"></span>微型导弹</td><td>30+80</td><td>1.2/s</td><td>130+AoE</td><td>14</td><td>范围爆破，注意自伤</td></tr>
+    </table>
+    <div class="grid">
+      <div class="card"><b>脉冲枪</b><span>PISTOL · 按键 1</span><p>战机标配脉冲炮，弹药无限，半自动精准点射 — 任何局面下最可靠的保底。</p></div>
+      <div class="card"><b>撕裂者</b><span>SMG · 按键 2</span><p>机载转管机炮，高射速泼水压制近中距离，输出稳定但弹药消耗极快。</p></div>
+      <div class="card"><b>爆裂霰弹</b><span>SHOTGUN · 按键 3</span><p>一次喷射 8 颗弹丸，近距毁灭性伤害 + 大幅击退，容错率低。</p></div>
+      <div class="card"><b>棱镜激光</b><span>LASER · 按键 4</span><p>机载棱镜射线穿透路径上所有敌人，直线输出天花板，配穿甲质变。</p></div>
+      <div class="card"><b>微型导弹</b><span>ROCKET · 按键 5</span><p>挂架微型导弹撞击后 125 半径范围爆破，清密集怪群的王牌 — 小心自伤。</p></div>
+    </div>
+  </section>
+
+  <section id="enemies">
+    <h2>敌人 / HOSTILES</h2>
+    <h3>地面</h3>
+    <table>
+      <tr><th>类型</th><th>威胁</th><th>HP</th><th>速度</th><th>行为</th></tr>
+      <tr><td><span class="sw" style="background:#ff4d6d;color:#ff4d6d"></span>游荡者</td><td>低</td><td>60</td><td>120</td><td>远程点射 + 贴身撞击</td></tr>
+      <tr><td><span class="sw" style="background:#ff8a5c;color:#ff8a5c"></span>突袭者</td><td>中</td><td>38</td><td>228</td><td>极速近战，近身再加速 25%</td></tr>
+      <tr><td><span class="sw" style="background:#c77dff;color:#c77dff"></span>射手</td><td>中</td><td>82</td><td>96</td><td>三连点射，保持 330 距离侧移</td></tr>
+      <tr><td><span class="sw" style="background:#7df9ff;color:#7df9ff"></span>狙击手</td><td>高</td><td>70</td><td>80</td><td>0.85 秒蓄力射线，27 高伤</td></tr>
+      <tr><td><span class="sw" style="background:#9ae66e;color:#9ae66e"></span>重装</td><td>高</td><td>340</td><td>64</td><td>五发扇形弹幕 + 高血量</td></tr>
+    </table>
+    <h3>空中</h3>
+    <div class="grid">
+      <div class="card"><b>侦查无人机</b><span>ORBIT · HP 85</span><p>绕玩家盘旋游斗，双发点射；血薄但一刻不停。</p></div>
+      <div class="card"><b>掠袭攻击机</b><span>STRAFE · HP 155</span><p>高速俯冲掠袭，边冲边扫射，往复穿越整个战场。</p></div>
+      <div class="card"><b>重装炮艇</b><span>BOMB · HP 640</span><p>高空巡航投弹，落点有预警圈；空中堡垒。</p></div>
+    </div>
+    <h3>BOSS</h3>
+    <div class="grid">
+      <div class="card"><b>哨兵 SENTINEL</b><span>地面 · 基础 HP 1900</span><p>均衡的追击者：中速中血，旋转三段力场 — 新人杀手的教学型 Boss。</p></div>
+      <div class="card"><b>幽影 WRAITH</b><span>地面 · 基础 HP 2600</span><p>最灵活的地面 Boss：高速游走，力场转速全场最快，考验预判。</p></div>
+      <div class="card"><b>泰坦 TITAN</b><span>地面 · 基础 HP 3400</span><p>血最厚的地面堡垒：行动沉缓但弹幕密集，持久战消耗品告急。</p></div>
+      <div class="card"><b>无畏舰 DREADNOUGHT</b><span>空中 · 基础 HP 3000</span><p>唯一的空中 Boss：飞行投弹、落点预警，免疫一切地面阻挡。</p></div>
+    </div>
+    <p class="note" style="margin-top:16px">敌人实际血量 = 基础 ×（关内波次系数 1 + 0.10×(n−1)）×（区域系数 1 + 0.55×区域序号）× 区域修正。Boss 血量 = 基础 ×（1 + 区域序号 × 0.5）。</p>
+  </section>
+
+  <section id="sectors">
+    <h2>八个区域 / SECTORS</h2>
+    <p>每个区域有独立地图主题与规则修正。通关一个区域即解锁下一个，进度保存在本地；暂停面板可随时切换已解锁关卡。选择高序号区域开局会直接发放对应的武器与弹药。</p>
+    <div class="grid">
+      <div class="card"><b>01 霓虹码头</b><span>NEON DOCKS</span><p>标准规则 · 无额外修正</p></div>
+      <div class="card"><b>02 熔炉厂区</b><span>THE FOUNDRY</span><p>敌人移速 +12%</p></div>
+      <div class="card"><b>03 数据回廊</b><span>DATA CORRIDOR</span><p>敌人射速 +18% · 弹药补给 +30%</p></div>
+      <div class="card"><b>04 霜蚀荒原</b><span>FROSTBITE</span><p>敌人血量 +18% · 护盾回复 −40%</p></div>
+      <div class="card"><b>05 毒沼地带</b><span>TOXIC MARSH</span><p>敌人数量 +20% · 移速 +8%</p></div>
+      <div class="card"><b>06 虚空尖塔</b><span>VOID SPIRE</span><p>敌人血量 +25% · 得分 +30%</p></div>
+      <div class="card"><b>07 锈蚀船坞</b><span>RUST YARD</span><p>敌人数量 +25% · 射速 +12%</p></div>
+      <div class="card"><b>08 核心熔毁</b><span>CORE MELTDOWN</span><p>全属性强化 · 最终区域</p></div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p class="note">原生 Canvas 2D + 固定步长 1/60 · WebAudio 程序化音效 · 进度写入本机 localStorage</p>
+    <a class="go" href="index.html">进入战场</a>
+  </div>
+</main>
+</body>
+</html>

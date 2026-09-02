@@ -9,31 +9,31 @@ window.SPR = (function () {
   const BASE = 'assets/';
   const MANIFEST = {
     /* 玩家机体 */
-    player:      'player.png',
+    player:      'player.webp',
     /* 空中单位 */
-    drone:       'drone.png',
-    wasp:        'wasp.png',
-    gunship:     'gunship.png',
-    dreadnought: 'dreadnought.png',
+    drone:       'drone.webp',
+    wasp:        'wasp.webp',
+    gunship:     'gunship.webp',
+    dreadnought: 'dreadnought.webp',
     /* 地面敌人 */
-    grunt:       'grunt.png',
-    runner:      'runner.png',
-    shooter:     'shooter.png',
-    sniper:      'sniper.png',
-    tank:        'tank.png',
+    grunt:       'grunt.webp',
+    runner:      'runner.webp',
+    shooter:     'shooter.webp',
+    sniper:      'sniper.webp',
+    tank:        'tank.webp',
     /* 地面 Boss */
-    sentinel:    'sentinel.png',
-    wraith:      'wraith.png',
-    titan:       'titan.png',
+    sentinel:    'sentinel.webp',
+    wraith:      'wraith.webp',
+    titan:       'titan.webp',
     /* 弹药 */
-    missile:     'missile.png',
-    bomb:        'bomb.png',
+    missile:     'missile.webp',
+    bomb:        'bomb.webp',
     /* 武器（顺序与 WEAPONS 一致） */
-    weapon_pistol:  'weapon_pistol.png',
-    weapon_smg:     'weapon_smg.png',
-    weapon_shotgun: 'weapon_shotgun.png',
-    weapon_laser:   'weapon_laser.png',
-    weapon_rocket:  'weapon_rocket.png',
+    weapon_pistol:  'weapon_pistol.webp',
+    weapon_smg:     'weapon_smg.webp',
+    weapon_shotgun: 'weapon_shotgun.webp',
+    weapon_laser:   'weapon_laser.webp',
+    weapon_rocket:  'weapon_rocket.webp',
   };
 
   const KEYS = Object.keys(MANIFEST);

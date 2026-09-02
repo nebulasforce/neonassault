@@ -16,8 +16,9 @@
 ```
 neonassault/
 ├── web/                    # ★ 唯一真实来源：纯静态游戏本体
-│   ├── index.html          #    入口（含 PWA meta 与 Service Worker 注册）
-│   ├── game.js             #    游戏主逻辑（约 3700 行）
+│   ├── index.html          #    游戏入口（含 PWA meta 与 Service Worker 注册）
+│   ├── guide.html          #    作战简报 / 游戏说明（不加载游戏脚本）
+│   ├── game.js             #    游戏主逻辑
 │   ├── textures.js         #    程序化纹理生成
 │   ├── sprites.js          #    外部贴图加载与缓存
 │   ├── manifest.json       #    PWA 清单
@@ -58,8 +59,10 @@ pnpm dev:web
 
 ```bash
 make push MSG="说明"                  # 提交并推送 → GitHub Pages
-make release MSG="说明"               # 提交 + 打 tag → APK / Windows / macOS / 鸿蒙 zip
+make release MSG="说明"               # 提交 + 打 tag，并等到 APK / Windows / macOS / 鸿蒙 zip 挂上
 make release VERSION=1.2.2 MSG="说明" # 指定版本号
+make release WAIT=0 MSG="说明"        # 推完即返回，自己去 Actions 看
+make wait                             # 只等待当前版本打包结束
 make tag                              # 只打当前 package.json 版本的 tag
 ```
 
@@ -84,7 +87,7 @@ make tag                              # 只打当前 package.json 版本的 tag
 | 确认（菜单→开局、暂停→继续、阵亡→重开） | `Enter` |
 | 强化三选一 | `1` `2` `3`，跳过按 `S` |
 | 关卡选择界面直达 | `1` – `8` |
-| 查看操作说明 | `Tab` |
+| 查看操作说明 | 主菜单「游戏说明」打开 `guide.html` |
 | 自动瞄准 / 自动发射 | 右上 `AIM` / `FIRE`，或主菜单、暂停面板开关（写入存档） |
 
 > 方向键**只用于瞄准**（经典双摇杆手感）；瞄准时按 `WASD` 仍可移动，但方向键不会再让你走动。

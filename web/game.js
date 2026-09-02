@@ -333,6 +333,8 @@ const SFX = {
   kill(){ this.noise(0.18,0.13,420,0.6); this.tone(220,70,0.16,'square',0.09); },
   boom(){ this.noise(0.45,0.30,260,0.5); this.tone(120,35,0.40,'sawtooth',0.19); },
   hurt(){ this.tone(200,80,0.22,'sawtooth',0.22); this.noise(0.16,0.15,320,0.8); },
+  shieldHit(){ this.tone(980,420,0.08,'sine',0.10); this.noise(0.05,0.04,2400,2); },
+  shieldBreak(){ this.tone(640,160,0.24,'triangle',0.16); this.noise(0.22,0.14,1800,1.1); },
   dash(){ this.noise(0.16,0.13,2400,2.2); },
   warp(){ this.tone(180,720,0.16,'sine',0.14); this.noise(0.12,0.08,1100,1.6); },
   pickup(){ this.tone(660,1320,0.12,'sine',0.15); },
@@ -802,7 +804,7 @@ function makePlayer() {
     ammo: { pistol:Infinity, smg:260, shotgun:0, laser:0, rocket:0 },
     wi: 0, cool: 0, firedPress: false,
     dashT: 0, dashCd: 0, dashDx: 0, dashDy: 0, iframe: 0, gateCd: 0,
-    hurtFlash: 0, muzzle: 0, recoil: 0, dead: false, touchCd: 0,
+    hurtFlash: 0, muzzle: 0, recoil: 0, shPulse: 0, dead: false, touchCd: 0,
   };
 }
 
@@ -844,6 +846,7 @@ function makeEnemy(type, x, y, scale) {
            chargeT: 0, hitT: 0, angle: rand(0, TAU),
            strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.6, 1.8),
            spawnT: 0.35, touchCd: 0, noLosT: 0,
+           wallT: 0, steerSide: 0, steerObs: null,
            sprite: t.sprite || type,
            boss: false, dead: false, spin: rand(0, TAU) };
 }
@@ -856,6 +859,7 @@ function makeBoss(s) {
   return { type:'boss', t:b, x:p.x, y:p.y, r:b.r, vx:0, vy:0, hp, hpMax:hp,
            color:b.color, speed:b.speed, cool:1.4, phase:0, pt:2.2, sub:0, subN:0,
            chargeT:0, cx:0, cy:0, hitT:0, angle:0, spawnT:0.8, touchCd:0,
+           wallT:0, steerSide:0, steerObs:null,
            boss:true, dead:false, name:b.name, cn:b.cn,
            /* 空中 Boss：补齐 updateAir 用到的全部字段，否则坐标会算成 NaN */
            air: !!b.air, alt: b.alt || 0, sprite: b.sprite || '', mode: b.mode || '',
@@ -1130,6 +1134,7 @@ function anyLiveEnemy() {
 function updatePlayer(dt) {
   const p = player;
   p.cool -= dt; p.dashCd -= dt; p.iframe -= dt; p.hurtFlash -= dt; p.muzzle -= dt;
+  p.shPulse -= dt;
   p.recoil = Math.max(0, p.recoil - dt * 4.2);
 
   /* 方向键瞄准：方向键按下时接管鼠标瞄准并自动开火。
@@ -1243,8 +1248,11 @@ function updatePlayer(dt) {
   if (wantFire && p.cool <= 0 && p.ammo[w.id] > 0) fire(w);
 
   p.shRegenT -= dt;
-  if (p.shRegenT <= 0 && p.sh < p.shMax)
+  if (p.shRegenT <= 0 && p.sh < p.shMax) {
+    const was = p.sh;
     p.sh = Math.min(p.shMax, p.sh + 14 * (1 + pval('shRegenMult', 0)) * (SEC.mods.shield || 1) * dt);
+    if (was <= 0.5 && p.sh > 0.5) p.shPulse = 0.18;
+  }
 
   const magnet = 1 + pval('magnetMult', 0);
   for (let i = pickups.length - 1; i >= 0; i--) {
@@ -1397,7 +1405,11 @@ function skipPerk() {
 function take(u) {
   SFX.pickup();
   if (u.kind === 'heal') { player.hp = Math.min(player.hpMax, player.hp + 30); floatText(u.x, u.y, '+30 HP', '#9ae66e', 16); }
-  else if (u.kind === 'shield') { player.sh = player.shMax; floatText(u.x, u.y, '护盾充能', '#7df9ff', 16); }
+  else if (u.kind === 'shield') {
+    player.sh = player.shMax;
+    player.shPulse = 0.22;
+    floatText(u.x, u.y, '护盾充能', '#eef7ff', 16);
+  }
   else if (u.kind === 'ammo') {
     const m = SEC.mods.ammo || 1;
     for (const w of WEAPONS)
@@ -1417,25 +1429,53 @@ function take(u) {
   burst(u.x, u.y, 16, u.color, 240, 3, 0.4);
 }
 
+/* 护盾在层上时吃掉全部伤害；扣到 0 的那一下只碎泡、不穿船体。
+   默认 50 点：游荡者 11 伤 5 下、射手 9 伤 6 下、狙击 27 伤 2 下。 */
+function absorbShield(sh, dmg) {
+  if (!(dmg > 0)) return { sh: Math.max(0, sh), hull: 0, hit: false, broken: false };
+  if (!(sh > 0)) return { sh: 0, hull: dmg, hit: false, broken: false };
+  const next = Math.max(0, sh - dmg);
+  return { sh: next, hull: 0, hit: true, broken: next <= 0 };
+}
+
+function popShield(p) {
+  floatText(p.x, p.y - 30, '护盾击破', '#eef7ff', 16);
+  if (parts.length <= Q.partMax)
+    parts.push({ x: p.x, y: p.y, vx: 0, vy: 0, life: 0.34, max: 0.34,
+                 color: '#eef7ff', size: p.r + 22, drag: 1, ring: true });
+  burst(p.x, p.y, 24, '#f4fbff', 420, 2.1, 0.36);
+  burst(p.x, p.y, 10, '#d4ecff', 240, 3.0, 0.28);
+  SFX.shieldBreak();
+  shake(7);
+}
+
 function hurtPlayer(dmg, fx, fy) {
   const p = player;
   if (p.iframe > 0 || p.dead) return;
   runStats.dmgTaken += dmg;          /* 无伤成就判定：护盾吃下的伤害也算受伤 */
-  let d = dmg;
-  if (p.sh > 0) {
-    const ab = Math.min(p.sh, d);
-    p.sh -= ab; d -= ab;
-    burst(p.x, p.y, 10, '#7df9ff', 260, 2.6, 0.3);
-  }
-  p.hp -= d;
-  p.iframe = 0.42; p.hurtFlash = 0.3; p.shRegenT = 5.0;
+  const abs = absorbShield(p.sh, dmg);
+  p.sh = abs.sh;
+  p.shRegenT = 5.0;
   combo = 0; comboTimer = 0;
-  SFX.hurt(); shake(9); hitStop = Math.max(hitStop, 3);
   const a = Math.atan2(p.y - fy, p.x - fx);
+  if (abs.hit) {
+    p.shPulse = 0.22;
+    burst(p.x, p.y, 8, '#e8f4ff', 200, 2.2, 0.24);
+  }
+  if (abs.broken) popShield(p);
+  if (abs.hull <= 0) {
+    p.iframe = 0.18;
+    p.vx += Math.cos(a) * 90; p.vy += Math.sin(a) * 90;
+    if (!abs.broken) SFX.shieldHit();
+    shake(4); hitStop = Math.max(hitStop, 2);
+    return;
+  }
+  p.hp -= abs.hull;
+  p.iframe = 0.42; p.hurtFlash = 0.3;
+  SFX.hurt(); shake(9); hitStop = Math.max(hitStop, 3);
   p.vx += Math.cos(a) * 190; p.vy += Math.sin(a) * 190;
   burst(p.x, p.y, 14, '#ff4d6d', 300, 3, 0.35);
   hitFog(p.x, p.y, '#ffe8f4', p.r * 1.55);
-  hitFog(p.x, p.y, '#7df9ff', p.r * 0.9);
   if (p.hp <= 0) killPlayer();
 }
 
@@ -1502,6 +1542,9 @@ function updateEnemies(dt) {
       mvx = Math.cos(toA) * along - Math.sin(toA) * 0.75 * e.strafe;
       mvy = Math.sin(toA) * along + Math.cos(toA) * 0.75 * e.strafe;
     } else { mvx = Math.cos(toA); mvy = Math.sin(toA); }
+
+    const steered = steerAround(e, mvx, mvy, p.x, p.y, dt, obstacles);
+    mvx = steered.x; mvy = steered.y;
 
     const sp = t.speed * (SEC.mods.spd || 1) * (e.type === 'runner' && d < 260 ? 1.25 : 1);
     const k = 1 - Math.pow(0.004, dt);
@@ -1701,9 +1744,13 @@ function updateBoss(b, dt, d, toA) {
 
   if (b.phase === 0) {
     const along = d > 330 ? 1 : d < 220 ? -1 : 0;
+    let mvx = Math.cos(toA) * along - Math.sin(toA) * 0.8;
+    let mvy = Math.sin(toA) * along + Math.cos(toA) * 0.8;
+    const steered = steerAround(b, mvx, mvy, p.x, p.y, dt, obstacles);
+    mvx = steered.x; mvy = steered.y;
     const k = 1 - Math.pow(0.01, dt);
-    b.vx = lerp(b.vx, (Math.cos(toA) * along - Math.sin(toA) * 0.8) * b.speed, k);
-    b.vy = lerp(b.vy, (Math.sin(toA) * along + Math.cos(toA) * 0.8) * b.speed, k);
+    b.vx = lerp(b.vx, mvx * b.speed, k);
+    b.vy = lerp(b.vy, mvy * b.speed, k);
     b.x += b.vx * dt; b.y += b.vy * dt;
     b.cool -= dt;
     if (b.cool <= 0) {
@@ -2405,13 +2452,15 @@ function drawPlayer() {
   ctx.globalAlpha = blink ? 0.42 : 1;
   }    /* ← !usedSprite 块结束 */
 
-  /* 炮管 */
-  ctx.fillStyle = '#0b1424';
-  ctx.fillRect(R - 4, -3, 17, 6);
-  ctx.strokeStyle = WEAPONS[p.wi].color; ctx.lineWidth = 1.4;
-  ctx.strokeRect(R - 4, -3, 17, 6);
-  ctx.fillStyle = WEAPONS[p.wi].color;
-  ctx.fillRect(R + 9, -1.6, 5, 3.2);
+  /* 程序化机体才叠炮管；贴图本身已有机头，再描矩形会在开火时露出黄框 */
+  if (!usedSprite) {
+    ctx.fillStyle = '#0b1424';
+    ctx.fillRect(R - 4, -3, 17, 6);
+    ctx.strokeStyle = WEAPONS[p.wi].color; ctx.lineWidth = 1.4;
+    ctx.strokeRect(R - 4, -3, 17, 6);
+    ctx.fillStyle = WEAPONS[p.wi].color;
+    ctx.fillRect(R + 9, -1.6, 5, 3.2);
+  }
 
   /* 枪口闪光 */
   if (p.muzzle > 0) {
@@ -2438,19 +2487,55 @@ function drawPlayer() {
     ctx.restore();
   }
 
-  /* 护盾环 */
-  if (p.sh > 0.5) {
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.strokeStyle = '#7df9ff';
-    ctx.globalAlpha = 0.18 + 0.30 * (p.sh / p.shMax);
+  drawShieldBubble();
+}
+
+/* 浅色皂泡：有护盾才画。不是旧的青色描边圈。 */
+function drawShieldBubble() {
+  const p = player;
+  if (!p || p.sh <= 0.5) return;
+  const k = clamp(p.sh / p.shMax, 0, 1);
+  const hit = clamp((p.shPulse || 0) / 0.22, 0, 1);
+  const rad = p.r + 16 + Math.sin(elapsed * 3.4) * 1.4 + hit * 5;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+  const g = ctx.createRadialGradient(-rad * 0.28, -rad * 0.32, rad * 0.06, 0, 0, rad);
+  g.addColorStop(0, 'rgba(255,255,255,' + (0.14 + hit * 0.12) + ')');
+  g.addColorStop(0.42, 'rgba(236,248,255,0.07)');
+  g.addColorStop(0.78, 'rgba(214,236,255,' + (0.16 + k * 0.12 + hit * 0.16) + ')');
+  g.addColorStop(1, 'rgba(255,255,255,0.04)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, rad, 0, TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(245,252,255,' + (0.30 + k * 0.32 + hit * 0.22) + ')';
+  ctx.lineWidth = 1.45 + hit;
+  ctx.stroke();
+  if (Q.fx) {
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.42 + k * 0.22) + ')';
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, p.r + 9 + Math.sin(elapsed * 4) * 1.6, 0, TAU); ctx.stroke();
-    ctx.globalAlpha = 0.10 * (p.sh / p.shMax);
-    ctx.beginPath(); ctx.arc(0, 0, p.r + 14, 0, TAU); ctx.fill();
-    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(-rad * 0.08, -rad * 0.10, rad * 0.78, -2.45, -0.72);
+    ctx.stroke();
+    ctx.globalAlpha = 0.32;
+    ctx.beginPath();
+    ctx.arc(rad * 0.14, rad * 0.20, rad * 0.52, 0.35, 1.38);
+    ctx.stroke();
     ctx.globalAlpha = 1;
   }
+  if (k < 0.42) {
+    ctx.strokeStyle = 'rgba(255,255,255,' + (0.18 + (0.42 - k) * 0.7) + ')';
+    ctx.lineWidth = 1;
+    const n = k < 0.2 ? 5 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = i * 1.92 + 0.4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * rad * 0.18, Math.sin(a) * rad * 0.18);
+      ctx.lineTo(Math.cos(a) * rad * 0.94, Math.sin(a) * rad * 0.94);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 /* 受击团雾：径向羽化圆。调用方必须在未旋转、无 shadowBlur 的坐标系里画，
@@ -3545,93 +3630,6 @@ function toggleAutoFire() {
 const CORNERS = '<i class="corner tl"></i><i class="corner tr"></i>' +
                 '<i class="corner bl"></i><i class="corner br"></i>';
 
-const TAB_CONTROLS = `
-<div class="keys">
-  <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div><div>移动（方向键仅在未瞄准时兼作移动）</div>
-  <div><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div><div>瞄准 + 自动开火（纯键盘玩法，走位与瞄准互不干扰）</div>
-  <div><kbd>鼠标</kbd>/<kbd>左键</kbd></div><div>瞄准 / 开火（连发武器可长按）</div>
-  <div><kbd>Shift</kbd>/<kbd>空格</kbd></div><div>冲刺 — 0.26 秒无敌帧，1.15 秒冷却</div>
-  <div><kbd>1</kbd>~<kbd>5</kbd>/<kbd>Q</kbd><kbd>E</kbd>/<kbd>滚轮</kbd></div><div>切换武器（Q/E 循环跳过无弹药槽位）</div>
-  <div><kbd>Enter</kbd></div><div>上下文主操作 — 菜单开新局 / 暂停继续 / 阵亡重开</div>
-  <div><kbd>P</kbd>/<kbd>Esc</kbd></div><div>暂停 — 暂停面板内可切换关卡、开关自动瞄准 / 自动发射</div>
-  <div><kbd>R</kbd></div><div>重新开始当前关卡</div>
-  <div><kbd>1</kbd>~<kbd>3</kbd>/<kbd>S</kbd></div><div>强化选择：1/2/3 选卡，S 跳过（+200 分）</div>
-  <div><kbd>1</kbd>~<kbd>8</kbd></div><div>关卡选择界面直接数字键直达对应区域</div>
-</div>
-<h3>辅助开关（桌面 / 触屏通用，写入存档）</h3>
-<ul>
-  <li><em>自动瞄准</em>：枪口锁定最近敌人；方向键 / 右半屏拖动摇杆 / 按住并拖动鼠标可手动接管（单击开火不会抢走瞄准）</li>
-  <li><em>自动发射</em>：有敌人时持续开火，不必按住扳机；空场自动停火</li>
-  <li>两个都开 = 锁最近敌人并连发。局内桌面点右上 AIM / FIRE，触屏点底栏中央同名按钮</li>
-</ul>
-<h3>触屏（手机 / 平板 · 横屏）</h3>
-<ul>
-  <li>请将设备<em>横置</em>游玩；竖屏会提示旋转。Android / 鸿蒙 / 已安装的 PWA 会锁定横屏</li>
-  <li>左半屏任意处按住拖动 = 移动摇杆；右半屏按住拖动 = 瞄准并开火（点按不改朝向，可配合自动瞄准）</li>
-  <li>右侧拇指区只保留瞄准摇杆与 <em>DASH</em> 冲刺；右半屏拖动才接管瞄准，点按只开火</li>
-  <li>底栏中央 <em>AIM</em> / <em>FIRE</em> 开关辅助瞄准与自动发射；底部武器条两侧 <em>◀ ▶</em> 换枪（也可点武器槽）；右上角 ❚❚ 暂停</li>
-</ul>
-<h3>物品</h3>
-<ul>
-  <li><em>十字</em> 恢复 30 生命 · <em>方块</em> 补充全武器弹药 · <em>圆环</em> 护盾充满</li>
-  <li><em>六边形 W</em> 武器箱 — 掉落一把新武器并自动装满弹药</li>
-  <li><em>金币</em> 击杀与通关获得，主菜单「商店」购买永久强化，进度自动存档</li>
-</ul>
-<h3>要点</h3>
-<ul>
-  <li>护盾先于生命承伤，脱战 5 秒后自动回充 — <em>打完一波主动撤退回盾</em>是核心节奏</li>
-  <li>掩体会挡住敌我双方的子弹，绕柱子打可以躲掉狙击手的蓄力射线</li>
-  <li><em>任意门</em>：场上成对出现的传送门，飞入一侧会从另一侧出来（小地图上同色椭圆）</li>
-  <li>连杀每 5 次提升 0.5 倍分数加成，中断计时 3 秒</li>
-</ul>`;
-
-const TAB_WEAPONS = `
-<table><tr><th>武器</th><th>单发</th><th>射速</th><th>DPS</th><th>弹药</th><th>定位</th></tr>
-<tr><td><span class="sw" style="background:#7df9ff"></span>脉冲枪</td><td>26</td><td>6.3/s</td><td>162</td><td>∞</td><td>机载标配，永不缺弹</td></tr>
-<tr><td><span class="sw" style="background:#ffe066"></span>撕裂者</td><td>13</td><td>15.4/s</td><td>200</td><td>260</td><td>机炮压制，弹药消耗快</td></tr>
-<tr><td><span class="sw" style="background:#ff8a5c"></span>爆裂霰弹</td><td>15×8</td><td>1.6/s</td><td>193</td><td>44</td><td>近身清场 + 击退</td></tr>
-<tr><td><span class="sw" style="background:#c77dff"></span>棱镜激光</td><td>17</td><td>14.3/s</td><td>243</td><td>220</td><td>穿透射线，直线高伤</td></tr>
-<tr><td><span class="sw" style="background:#ff4d6d"></span>微型导弹</td><td>30+80</td><td>1.2/s</td><td>130+AoE</td><td>14</td><td>范围爆破，注意自伤</td></tr>
-</table>
-<h3>敌人</h3>
-<table><tr><th>类型</th><th>威胁</th><th>HP</th><th>速度</th><th>行为</th></tr>
-<tr><td><span class="sw" style="background:#ff4d6d"></span>游荡者</td><td>低</td><td>60</td><td>120</td><td>远程点射 + 贴身撞击</td></tr>
-<tr><td><span class="sw" style="background:#ff8a5c"></span>突袭者</td><td>中</td><td>38</td><td>228</td><td>极速近战，近身再加速 25%</td></tr>
-<tr><td><span class="sw" style="background:#c77dff"></span>射手</td><td>中</td><td>82</td><td>96</td><td>三连点射，保持 330 距离侧移</td></tr>
-<tr><td><span class="sw" style="background:#7df9ff"></span>狙击手</td><td>高</td><td>70</td><td>80</td><td>0.85 秒蓄力射线，27 高伤</td></tr>
-<tr><td><span class="sw" style="background:#9ae66e"></span>重装</td><td>高</td><td>340</td><td>64</td><td>五发扇形弹幕 + 高血量</td></tr>
-</table>
-<p>敌人血量 = 基础 ×（关内波次系数 1 + 0.10×(n−1)）×（区域系数 1 + 0.55×区域序号）× 区域修正。</p>`;
-
-const TAB_DESIGN = `
-<h3>一句话定义</h3>
-<p>俯视角双摇杆竞技场生存射击：在霓虹废墟里清波次、抢补给、打 Boss，直到被打倒。
-每个区域 5 波，第 5 波为 Boss 战；通关后自动进入下一区域。</p>
-<h3>核心循环</h3>
-<ul>
-  <li><em>30 秒循环</em>：走位躲弹 → 找掩体回盾 → 清怪捡补给 → 换更强武器</li>
-  <li><em>5 波循环</em>：常规波积累资源 → Boss 波检验构筑 → 掉落新武器开启下一轮</li>
-  <li><em>风险回报</em>：连杀倍率要贴身打，回盾要脱离接触，两者形成拉扯</li>
-</ul>
-<h3>三个设计支点</h3>
-<ul>
-  <li><em>冲刺无敌帧</em> — 让"被围住"变成一个可解的操作题，而不是必死局</li>
-  <li><em>掩体双向阻挡</em> — 敌人子弹也被挡，玩家可以利用地形"卡视野"逐个击破</li>
-  <li><em>传送门预警</em> — 所有敌人生成前 0.62 秒有可见传送动画，杜绝不公平秒杀</li>
-</ul>
-<h3>8 个区域</h3>
-<ul>
-  <li>每个区域有独立地图主题（地面 / 掩体 / 星云全部程序化生成贴图）与规则修正</li>
-  <li>通关一个区域即解锁下一个，进度保存在本地；暂停面板可随时切换已解锁关卡</li>
-  <li>选择高序号区域开局会直接发放对应的武器与弹药，不必从零攒起</li>
-</ul>
-<h3>技术选型</h3>
-<ul>
-  <li>原生 Canvas 2D + 固定步长 1/60 秒累加器，渲染与逻辑解耦，帧率波动不影响手感</li>
-  <li>WebAudio 程序化合成音效，零外部资源，整套游戏三个文件、离线可跑</li>
-  <li>离屏 Canvas 预生成平铺贴图 + 辉光精灵，替代逐帧 shadowBlur，画面更细腻且更省性能</li>
-</ul>`;
-
 function panelShell(inner) {
   return CORNERS + inner;
 }
@@ -3688,268 +3686,28 @@ function achWallHtml() {
          '<div class="ach-grid">' + cards + '</div>';
 }
 
-/* ═══ 6.9 武器 / 敌人图鉴 ═════════════════════════════════
-   数值全部直接引用 WEAPONS / ENEMY_TYPES / AIR_TYPES / BOSSES，
-   这里只补充一句话行为描述与展示参数（威胁度 / 模式名），
-   保证图鉴信息与游戏内实际数据永远一致。                    */
-const CODEX_DESC = {
-  weapons: {
-    pistol:  '战机标配脉冲炮，弹药无限，半自动精准点射 — 任何局面下最可靠的保底',
-    smg:     '机载转管机炮，高射速泼水压制近中距离，输出稳定但弹药消耗极快',
-    shotgun: '机载霰射炮一次喷射 8 颗弹丸，近距毁灭性伤害 + 大幅击退，容错率低',
-    laser:   '机载棱镜射线穿透路径上所有敌人，直线输出天花板，配穿甲质变',
-    rocket:  '挂架微型导弹撞击后 125 半径范围爆破，清密集怪群的王牌 — 小心自伤',
-  },
-  enemies: {
-    grunt:   '基础杂兵：中距单发点射 + 贴身撞击，数量多时最危险',
-    runner:  '全场最快的近战单位，直线扑脸 — 出现即优先集火',
-    shooter: '保持 330 距离侧移游走，三连点射持续骚扰后排',
-    sniper:  '0.85 秒蓄力后射出 27 点高伤射线，红线即弹道，掩体可挡',
-    tank:    '340 血重甲炮台，五发扇形弹幕 — 开团先拆它',
-  },
-  air: {
-    drone:   '绕玩家盘旋游斗，双发点射；血薄但一刻不停',
-    wasp:    '高速俯冲掠袭，边冲边扫射，往复穿越整个战场',
-    gunship: '高空巡航投弹，落点有预警圈；640 血的空中堡垒',
-  },
-  bosses: {
-    0: '均衡的追击者：中速中血，旋转三段力场 — 新人杀手的教学型 Boss',
-    1: '最灵活的地面 Boss：高速游走，力场转速全场最快，考验预判',
-    2: '血最厚的地面堡垒：行动沉缓但弹幕密集，持久战消耗品告急',
-    3: '唯一的空中 Boss：飞行投弹、落点预警，免疫一切地面阻挡',
-  },
-};
-const CODEX_THREAT = { grunt:'低', runner:'中', shooter:'中', sniper:'高', tank:'高' };
-const AIR_MODE_CN  = { orbit:'盘旋射击', strafe:'俯冲掠袭', bomb:'巡航投弹' };
-
-/* 地面敌人缩略图：复刻游戏内 drawEnemies 的程序化几何体（缩小版） */
-function cxGroundThumb(c, cx, cy, r, type, color) {
-  c.save();
-  c.translate(cx, cy);
-  c.save();
-  c.globalCompositeOperation = 'lighter';
-  c.globalAlpha = 0.65;
-  c.drawImage(TEX.glow(color), -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
-  c.restore();
-  c.rotate(-0.5);
-
-  if (type === 'runner') {
-    c.beginPath();
-    c.moveTo(r * 1.15, 0); c.lineTo(-r * 0.9, r * 0.85);
-    c.lineTo(-r * 0.42, 0); c.lineTo(-r * 0.9, -r * 0.85);
-    c.closePath();
-    c.fillStyle = 'rgba(20,10,8,0.92)'; c.fill();
-    c.lineWidth = 2; c.strokeStyle = color; c.stroke();
-    c.strokeStyle = TEX.rgba(color, 0.45); c.lineWidth = 1;
-    c.beginPath(); c.moveTo(-r * 0.5, 0); c.lineTo(r * 0.8, 0); c.stroke();
-    c.fillStyle = color;
-    c.beginPath(); c.arc(r * 0.18, 0, 2.4, 0, TAU); c.fill();
-
-  } else if (type === 'tank') {
-    c.beginPath();
-    for (let i = 0; i < 8; i++) {
-      const a = i * TAU / 8;
-      i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    c.closePath();
-    const tg = c.createLinearGradient(-r, -r, r, r);
-    tg.addColorStop(0, TEX.shade(color, -0.70));
-    tg.addColorStop(1, '#08120a');
-    c.fillStyle = tg; c.fill();
-    c.lineWidth = 2.8; c.strokeStyle = color; c.stroke();
-    c.strokeStyle = TEX.rgba(color, 0.30); c.lineWidth = 1.4;
-    c.strokeRect(-r * 0.52, -r * 0.52, r * 1.04, r * 1.04);
-    c.fillStyle = '#0b1410';
-    c.fillRect(r * 0.5, -r * 0.42, r * 0.95, 4);
-    c.fillRect(r * 0.5, r * 0.42 - 4, r * 0.95, 4);
-    c.strokeStyle = color; c.lineWidth = 1.2;
-    c.strokeRect(r * 0.5, -r * 0.42, r * 0.95, 4);
-    c.strokeRect(r * 0.5, r * 0.42 - 4, r * 0.95, 4);
-
-  } else if (type === 'sniper') {
-    c.fillStyle = '#0c1420';
-    c.beginPath(); c.arc(0, 0, r * 0.9, 0, TAU); c.fill();
-    c.lineWidth = 2; c.strokeStyle = color; c.stroke();
-    c.strokeStyle = TEX.rgba(color, 0.35); c.lineWidth = 1;
-    c.beginPath(); c.arc(0, 0, r * 0.56, 0, TAU); c.stroke();
-    c.fillStyle = '#0c1420';
-    c.fillRect(r * 0.85 - 2, -2.2, r * 1.15, 4.4);
-    c.strokeStyle = color; c.lineWidth = 1.2;
-    c.strokeRect(r * 0.85 - 2, -2.2, r * 1.15, 4.4);
-    c.fillStyle = color;
-    c.fillRect(r * 1.9, -1.1, 3.6, 2.2);
-
-  } else if (type === 'shooter') {
-    c.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const a = i * TAU / 5 - Math.PI / 2;
-      i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    c.closePath();
-    c.fillStyle = 'rgba(24,14,38,0.92)'; c.fill();
-    c.lineWidth = 2.2; c.strokeStyle = color; c.stroke();
-    c.fillStyle = '#0d0718';
-    c.fillRect(r * 0.55, -r * 0.55, r * 0.8, 4);
-    c.fillRect(r * 0.55, r * 0.55 - 4, r * 0.8, 4);
-
-  } else {  /* grunt：三角形 */
-    c.beginPath();
-    for (let i = 0; i < 3; i++) {
-      const a = i * TAU / 3 - Math.PI / 2;
-      i ? c.lineTo(Math.cos(a) * r, Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    c.closePath();
-    c.fillStyle = 'rgba(26,8,16,0.92)'; c.fill();
-    c.lineWidth = 2; c.strokeStyle = color; c.stroke();
-    c.strokeStyle = TEX.rgba(color, 0.40); c.lineWidth = 1.2;
-    c.beginPath(); c.moveTo(-r * 0.45, 0); c.lineTo(r * 0.45, 0); c.stroke();
-  }
-  c.restore();
-}
-
-/* 图鉴卡片缩略图：武器 / 空中 / Boss / 地面敌人走贴图，缺失时回退 */
-function paintCodexThumbs(ov) {
-  ov.querySelectorAll('canvas.cx-img').forEach(cv => {
-    const kind = cv.dataset.kind, id = cv.dataset.id;
-    const c = cv.getContext('2d');
-    const S = cv.width, cx = S / 2, cy = S / 2;
-    c.clearRect(0, 0, S, S);
-    let color = '#7df9ff', img = null, size = S * 0.72, angle = -0.5;
-
-    if (kind === 'weapon') {
-      const w = WEAPONS[WI[id]];
-      if (w) color = w.color;
-      img = SPR.raw('weapon_' + id);
-      size = S * 0.74; angle = -0.45;
-    } else if (kind === 'air') {
-      const t = AIR_TYPES[id];
-      if (t) color = t.color;
-      img = t ? SPR.raw(t.sprite) : null;
-      size = S * 0.82; angle = -0.35;
-    } else if (kind === 'boss') {
-      const b = BOSSES[+id];
-      if (b) color = b.color;
-      img = b ? SPR.raw(b.sprite) : null;
-      size = S * 0.86; angle = -0.5;
-    } else {
-      const t = ENEMY_TYPES[id];
-      if (t) color = t.color;
-      img = t ? SPR.raw(t.sprite || id) : null;
-      size = S * 0.82; angle = -0.35;
-      if (!img) {
-        cxGroundThumb(c, cx, cy, S * 0.38, id, t ? t.color : '#ff4d6d');
-        return;
-      }
-    }
-
-    c.save();
-    c.globalCompositeOperation = 'lighter';
-    c.globalAlpha = 0.55;
-    c.drawImage(TEX.glow(color), cx - size, cy - size, size * 2, size * 2);
-    c.restore();
-
-    if (img) {
-      c.save();
-      c.translate(cx, cy); c.rotate(angle);
-      c.shadowColor = color; c.shadowBlur = 10;
-      c.drawImage(img, -size / 2, -size / 2, size, size);
-      c.restore();
-    } else {
-      /* 素材缺失回退：同色剪影三角，保证图鉴永不露空 */
-      c.save();
-      c.translate(cx, cy); c.rotate(angle);
-      c.beginPath();
-      c.moveTo(size * 0.5, 0);
-      c.lineTo(-size * 0.35, size * 0.34);
-      c.lineTo(-size * 0.35, -size * 0.34);
-      c.closePath();
-      c.fillStyle = '#0a0812'; c.fill();
-      c.lineWidth = 2; c.strokeStyle = color; c.stroke();
-      c.restore();
-    }
-  });
-}
-
-/* 图鉴页 HTML：缩略图 canvas 由 paintCodexThumbs 在面板插入后统一上色 */
-function cxCard(kind, id, color, name, tag, stats, desc) {
-  const rows = stats.map(s => '<span><i>' + s[0] + '</i>' + s[1] + '</span>').join('');
-  return '<div class="cx-card" style="--c:' + color + '">' +
-           '<canvas class="cx-img" width="110" height="110" data-kind="' + kind + '" data-id="' + id + '"></canvas>' +
-           '<div class="cx-body">' +
-             '<div class="cx-name">' + name + '</div>' +
-             '<div class="cx-tag">' + tag + '</div>' +
-             '<div class="cx-stats">' + rows + '</div>' +
-             '<div class="cx-desc">' + desc + '</div>' +
-           '</div>' +
-         '</div>';
-}
-
-function codexHtml() {
-  const wCards = WEAPONS.map(w => cxCard('weapon', w.id, w.color, w.name,
-    '武器 · 按键 ' + w.key,
-    [['伤害', w.count > 1 ? w.dmg + '×' + w.count : w.dmg],
-     ['射速', (1 / w.rate).toFixed(1) + '/s'],
-     ['弹药', w.ammoMax === Infinity ? '∞' : w.ammoMax]],
-    CODEX_DESC.weapons[w.id])).join('');
-
-  const eCards = Object.keys(ENEMY_TYPES).map(k => {
-    const t = ENEMY_TYPES[k];
-    return cxCard('ground', k, t.color, t.name,
-      '地面敌人 · 威胁 ' + CODEX_THREAT[k],
-      [['HP', t.hp], ['速度', t.speed], ['分值', t.score]],
-      CODEX_DESC.enemies[k]);
-  }).join('');
-
-  const aCards = Object.keys(AIR_TYPES).map(k => {
-    const t = AIR_TYPES[k];
-    return cxCard('air', k, t.color, t.name,
-      '空中单位 · ' + AIR_MODE_CN[t.mode],
-      [['HP', t.hp], ['速度', t.speed], ['分值', t.score]],
-      CODEX_DESC.air[k]);
-  }).join('');
-
-  const bCards = BOSSES.map((b, i) => cxCard('boss', i, b.color, b.cn + ' ' + b.name,
-    (b.air ? '空中 BOSS' : '地面 BOSS') + ' · 第 ' + (i + 1) + '/' + (i + 5) + ' 区最终波',
-    [['基础 HP', b.base], ['速度', b.speed], ['半径', b.r]],
-    CODEX_DESC.bosses[i])).join('');
-
-  return '<div class="cx-h">武器 <span>WEAPONS · ' + WEAPONS.length + '</span></div>' +
-         '<div class="cx-grid">' + wCards + '</div>' +
-         '<div class="cx-h">地面敌人 <span>GROUND · ' + Object.keys(ENEMY_TYPES).length + '</span></div>' +
-         '<div class="cx-grid">' + eCards + '</div>' +
-         '<div class="cx-h">空中单位 <span>AIR · ' + Object.keys(AIR_TYPES).length + '</span></div>' +
-         '<div class="cx-grid">' + aCards + '</div>' +
-         '<div class="cx-h">BOSS <span>BOSSES · ' + BOSSES.length + '</span></div>' +
-         '<div class="cx-grid">' + bCards + '</div>' +
-         '<p class="cx-note">敌人实际血量 = 基础 × 波次系数 × 区域系数；Boss 血量 = 基础 ×（1 + 区域序号 × 0.5）。</p>';
-}
-
 function showPanel(mode, isBest) {
   const ov = $('overlay');
   let html = '';
 
   if (mode === 'menu') {
     html = panelShell(`
-      <h1>霓虹突袭</h1>
-      <div class="sub">NEON ASSAULT &nbsp;·&nbsp; 俯视角竞技场生存射击</div>
-      <div class="tabs">
-        <button class="on" data-tab="design">设计说明</button>
-        <button data-tab="controls">操作与规则</button>
-        <button data-tab="weapons">武器 / 敌人</button>
-        <button data-tab="codex">图鉴</button>
-        <button data-tab="ach">成就 ${achCount()}/${ACHIEVEMENTS.length}</button>
+      <div class="menu-hero">
+        <h1>霓虹突袭</h1>
+        <div class="sub">NEON ASSAULT &nbsp;·&nbsp; 俯视角竞技场生存射击</div>
+        <div class="menu-nav">
+          <button class="btn" id="btnStart">开始游戏</button>
+          <div class="menu-links">
+            <button class="btn ghost" id="btnLevels">关卡选择</button>
+            <button class="btn ghost" id="btnShop">商店</button>
+            <a class="btn ghost" href="guide.html">游戏说明</a>
+            <button class="btn ghost" id="btnAch">成就 ${achCount()}/${ACHIEVEMENTS.length}</button>
+          </div>
+        </div>
       </div>
-      <div class="pane on" id="pane-design">${TAB_DESIGN}</div>
-      <div class="pane" id="pane-controls">${TAB_CONTROLS}</div>
-      <div class="pane" id="pane-weapons">${TAB_WEAPONS}</div>
-      <div class="pane" id="pane-codex">${codexHtml()}</div>
-      <div class="pane" id="pane-ach">${achWallHtml()}</div>
-      <div class="actions">
-        <button class="btn" id="btnStart">开始游戏</button>
-        <button class="btn ghost" id="btnLevels">关卡选择</button>
-        <button class="btn ghost" id="btnShop">商店</button>
-        <span class="spacer"></span>
+      <div class="actions menu-foot">
         ${assistBtnsHtml()}
+        <span class="spacer"></span>
         <span class="gold-chip">${GOLD_ICO}${(save.gold | 0).toLocaleString('en-US')}</span>
         <span style="font-size:11px;letter-spacing:.16em;color:#7d8aa5">
           历史最高 ${best.toLocaleString('en-US')}</span>
@@ -3998,18 +3756,9 @@ function showPanel(mode, isBest) {
     html = panelShell(`
       <h1 style="font-size:30px">已暂停</h1>
       <div class="sub">SECTOR ${SEC.n} · ${theme.cn} &nbsp;·&nbsp; WAVE ${secWave()} / 5 &nbsp;·&nbsp; 得分 ${score.toLocaleString('en-US')}</div>
-      <div class="tabs">
-        <button class="on" data-tab="controls">操作</button>
-        <button data-tab="weapons">武器 / 敌人</button>
-        <button data-tab="codex">图鉴</button>
-        <button data-tab="perks">当前强化</button>
-        <button data-tab="ach">成就 ${achCount()}/${ACHIEVEMENTS.length}</button>
-      </div>
-      <div class="pane on" id="pane-controls">${TAB_CONTROLS}</div>
-      <div class="pane" id="pane-weapons">${TAB_WEAPONS}</div>
-      <div class="pane" id="pane-codex">${codexHtml()}</div>
-      <div class="pane" id="pane-perks"><h3>当前强化</h3>${perksHtml}</div>
-      <div class="pane" id="pane-ach">${achWallHtml()}</div>
+      <p class="pause-hint">WASD 移动 · 方向键瞄准开火 · Shift / 空格冲刺 · 1–5 / Q E 换枪 · Esc 继续</p>
+      <div class="lvbar"><span class="t">当前强化</span></div>
+      <div class="perk-now">${perksHtml}</div>
       <div class="actions">
         <button class="btn" id="btnResume">继续游戏</button>
         <button class="btn ghost" id="btnRestart">重打本关</button>
@@ -4018,6 +3767,16 @@ function showPanel(mode, isBest) {
         <span class="spacer"></span>
         ${assistBtnsHtml()}
         <button class="mute ${muted ? 'off' : ''}" id="btnMute">${muted ? '音效 关' : '音效 开'}</button>
+      </div>`);
+
+  } else if (mode === 'ach') {
+    html = panelShell(`
+      <h1 style="font-size:32px">成就墙</h1>
+      <div class="sub">DOSSIER &nbsp;·&nbsp; ${achCount()} / ${ACHIEVEMENTS.length} 已解锁</div>
+      ${achWallHtml()}
+      <div class="actions">
+        <button class="btn ghost" id="btnBack">返回主菜单</button>
+        <a class="btn ghost" href="guide.html">游戏说明</a>
       </div>`);
 
   } else if (mode === 'perks') {
@@ -4063,34 +3822,8 @@ function showPanel(mode, isBest) {
   }
 
   ov.querySelector('#panel').innerHTML = html;
+  ov.dataset.mode = mode;
   ov.classList.add('on');
-
-  /* 图鉴缩略图：canvas 已在 HTML 里，这里统一上色
-     （隐藏状态下的 canvas 也能正常绘制，切标签时无需重画） */
-  paintCodexThumbs(ov);
-
-  /* 标签页 */
-  const tabs = ov.querySelectorAll('.tabs button');
-  tabs.forEach(b => b.addEventListener('click', () => {
-    SFX.ui();
-    tabs.forEach(x => x.classList.remove('on'));
-    b.classList.add('on');
-    ov.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
-    /* 切到「成就」时实时刷新墙：成就可能在游戏局内解锁，
-       而 showPanel 是在开局 / 暂停时调用，墙上数据要按需重算 */
-    if (b.dataset.tab === 'ach') {
-      const pane = ov.querySelector('#pane-ach');
-      if (pane) pane.innerHTML = achWallHtml();
-    }
-    /* 切到「图鉴」时重画缩略图：菜单可能在贴图加载完成前就已渲染，
-       此处重画保证贴图就绪后能补上真图，而不是回退剪影 */
-    if (b.dataset.tab === 'codex') paintCodexThumbs(ov);
-    /* 顺便把别的标签按钮上「成就 X/Y」的旧数字也实时刷新一下 */
-    ov.querySelectorAll('.tabs button[data-tab="ach"]').forEach(xb =>
-      xb.textContent = '成就 ' + achCount() + '/' + ACHIEVEMENTS.length);
-    const pane = ov.querySelector('#pane-' + b.dataset.tab);
-    if (pane) pane.classList.add('on');
-  }));
 
   /* 关卡网格 */
   if (mode === 'levels') buildLevelGrid(ov);
@@ -4108,12 +3841,7 @@ function showPanel(mode, isBest) {
   bind('#btnBack',   () => { SFX.ui(); setState('menu'); showPanel('menu'); });
   bind('#btnMenu',   () => { SFX.ui(); setState('menu'); showPanel('menu'); });
   bind('#btnSkip',   skipPerk);
-  /* 成就墙：复用到主菜单面板，并自动切到「成就」标签页 */
-  bind('#btnAch',    () => {
-    SFX.ui(); setState('menu'); showPanel('menu');
-    const t = ov.querySelector('.tabs button[data-tab="ach"]');
-    if (t) t.click();
-  });
+  bind('#btnAch',    () => { SFX.ui(); setState('ach'); showPanel('ach'); });
   ov.querySelectorAll('#perkGrid .perk-card').forEach((el, i) =>
     el.addEventListener('click', () => { SFX.ui(); pickPerk(i); }));
   ov.querySelectorAll('#shopGrid .shop-card').forEach(el => {
@@ -4181,6 +3909,7 @@ window.addEventListener('keydown', e => {
     else if (state === 'paused') resume();
     else if (state === 'levels') { SFX.ui(); setState('menu'); showPanel('menu'); }
     else if (state === 'shop') { SFX.ui(); setState('menu'); showPanel('menu'); }
+    else if (state === 'ach') { SFX.ui(); setState('menu'); showPanel('menu'); }
     else if (state === 'dead') { SFX.ui(); setState('menu'); showPanel('menu'); }
   }
   if (k === 'r' && (state === 'playing' || state === 'paused' || state === 'dead')) newGame(sector);
@@ -4393,8 +4122,6 @@ showPanel('menu');
    加载完成前游戏已可正常游玩（回退到程序化绘制），完成后自动切换为贴图。 */
 SPR.load(() => {
   if (slotsBuilt) drawSlotIcons();
-  const ov = $('overlay');
-  if (ov && ov.querySelector('canvas.cx-img')) paintCodexThumbs(ov);
 });
 
 requestAnimationFrame(frame);
@@ -4460,7 +4187,7 @@ window.__NA = {
   },
   spawnAir: t => { const e = makeAir(t || 'drone', hpScale()); enemies.push(e); return e; },
   spawnEnemy: (type, x, y, scale) => { const e = makeEnemy(type || 'runner', x, y, scale || hpScale()); enemies.push(e); return e; },
-  dropAt, spawnDriftCrate, hurtPlayer,
+  dropAt, spawnDriftCrate, absorbShield, hurtPlayer,
   die: () => killPlayer(),
   spawnBoss: i => spawnBossFromQueue(i | 0),
   start: i => newGame(i | 0),

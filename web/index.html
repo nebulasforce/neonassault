@@ -309,14 +309,13 @@ if ('serviceWorker' in navigator) {
     #rotateLock .phone-ico{animation:none;transform:rotate(90deg)}
   }
 
-  /* 触屏菜单：横屏短高，保持多列、压缩边距；正文滚动、底栏按钮始终可见 */
-  body.touch .panel{width:min(960px,96vw);max-height:94vh;padding:16px 22px 12px;
-                    display:flex;flex-direction:column;overflow:hidden}
+  /* 触屏菜单：铺满视口，压缩边距；正文滚动、底栏按钮始终可见 */
+  body.touch .panel{width:100%;height:100%;max-height:none;padding:
+                    max(12px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+                    max(10px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left))}
   body.touch h1{font-size:32px;flex-shrink:0}
   body.touch .sub{margin:6px 0 10px;flex-shrink:0}
   body.touch .lvbar{flex-shrink:0}
-  body.touch .pane{min-height:0;flex:1 1 auto;overflow-y:auto}
-  body.touch .tabs{flex-wrap:wrap;gap:0 4px;flex-shrink:0}
   body.touch .levels{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;
                      flex:1 1 auto;min-height:0;overflow-y:auto}
   body.touch .scard canvas{height:86px}
@@ -324,10 +323,12 @@ if ('serviceWorker' in navigator) {
   body.touch .actions{margin-top:10px;flex-shrink:0}
   body.touch .shop-grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px;
                         flex:1 1 auto;min-height:0;overflow-y:auto}
+  body.touch #overlay[data-mode="menu"] h1{font-size:clamp(26px,5.5vw,48px)}
+  body.touch .menu-nav{margin-top:14px;gap:12px}
+  body.touch .menu-foot{padding-top:10px}
   @media (max-height:420px){
-    body.touch .panel{padding:14px 20px 12px;max-height:96vh}
+    body.touch .panel{padding:max(10px, env(safe-area-inset-top)) 16px max(8px, env(safe-area-inset-bottom)) 16px}
     body.touch h1{font-size:24px}
-    body.touch .pane{min-height:0}
     body.touch .perk-card{padding:12px 12px}
     body.touch .scard canvas{height:64px}
     body.touch .stats{margin:12px 0 4px;gap:8px}
@@ -336,13 +337,15 @@ if ('serviceWorker' in navigator) {
     body.touch .btn{padding:10px 22px}
   }
 
-  /* ══════════ 覆盖层 ══════════ */
-  #overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  /* ══════════ 覆盖层（铺满视口，不再居中小卡片） ══════════ */
+  #overlay{position:absolute;inset:0;display:none;align-items:stretch;justify-content:stretch;
            background:radial-gradient(circle at 50% 42%,rgba(8,14,28,.80),rgba(2,4,9,.96));
            backdrop-filter:blur(6px) saturate(115%);z-index:10}
   #overlay.on{display:flex}
-  .panel{position:relative;width:min(880px,94vw);max-height:90vh;overflow-y:auto;
-         padding:36px 40px 32px;
+  .panel{position:relative;flex:1 1 auto;width:100%;height:100%;max-height:none;
+         display:flex;flex-direction:column;overflow:hidden;
+         padding:max(32px, env(safe-area-inset-top)) max(40px, env(safe-area-inset-right))
+                 max(24px, env(safe-area-inset-bottom)) max(40px, env(safe-area-inset-left));
          border:1px solid rgba(255,255,255,.12);
          background:
            linear-gradient(160deg,rgba(16,26,46,.94),rgba(6,10,20,.96) 55%,rgba(10,14,28,.96));
@@ -353,6 +356,22 @@ if ('serviceWorker' in navigator) {
                  opacity:.045;mix-blend-mode:overlay}
   .panel::after{content:'';position:absolute;inset:0;pointer-events:none;background-image:var(--grid)}
   .panel>*{position:relative;z-index:1}
+  .panel > h1,.panel > .sub,.panel > .lvbar,.panel > .go-title,.panel > .pause-hint,
+  .panel > .ach-sum,.panel > .newbest,.panel > .ach-run{flex-shrink:0}
+  .panel > .levels,.panel > .shop-grid,.panel > .ach-grid,.panel > .perks,.panel > .perk-now{
+    flex:1 1 auto;min-height:0;overflow-y:auto;align-content:start}
+  .panel > .actions{flex-shrink:0;margin-top:18px}
+  .panel > .actions.menu-foot{margin-top:0}
+  .menu-hero{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:center;
+             align-items:center;text-align:center;overflow-y:auto}
+  .menu-nav{display:flex;flex-direction:column;align-items:center;gap:18px;margin-top:28px}
+  .menu-links{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+  .menu-foot{padding-top:16px;border-top:1px solid rgba(255,255,255,.08)}
+  #overlay[data-mode="menu"] .sub{margin-bottom:0}
+  #overlay[data-mode="menu"] h1{font-size:clamp(48px,7vw,96px)}
+  #overlay[data-mode="menu"] #btnStart{padding:16px 44px;font-size:15px}
+  #overlay[data-mode="paused"] .panel,#overlay[data-mode="dead"] .panel{overflow-y:auto}
+  #overlay[data-mode="paused"] .stats,#overlay[data-mode="dead"] .stats{flex-shrink:0}
   /* 四角装饰 */
   .panel .corner{position:absolute;width:18px;height:18px;pointer-events:none;z-index:2}
   .panel .corner::before,.panel .corner::after{content:'';position:absolute;background:var(--accent);
@@ -369,34 +388,8 @@ if ('serviceWorker' in navigator) {
      -webkit-background-clip:text;background-clip:text;color:transparent;
      filter:drop-shadow(0 0 26px rgba(125,249,255,.28))}
   .sub{font-size:11px;letter-spacing:.42em;color:var(--dim);margin:9px 0 22px}
-
-  .tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.10)}
-  .tabs button{appearance:none;background:none;border:none;color:var(--dim);font:inherit;
-               font-size:12px;letter-spacing:.16em;padding:10px 15px;cursor:pointer;
-               border-bottom:2px solid transparent;transition:.15s;margin-bottom:-1px}
-  .tabs button:hover{color:var(--ink)}
-  .tabs button.on{color:var(--cyan);border-bottom-color:var(--cyan);
-                  text-shadow:0 0 14px rgba(125,249,255,.65)}
-
-  .pane{display:none;font-size:13px;line-height:1.85;color:#c3cee0;min-height:220px}
-  .pane.on{display:block}
-  .pane h3{font-size:11px;letter-spacing:.24em;color:var(--cyan);margin:18px 0 8px;font-weight:700}
-  .pane h3:first-child{margin-top:0}
-  .pane p{margin-bottom:8px}
-  .pane ul{list-style:none;margin-bottom:8px}
-  .pane li{padding-left:14px;position:relative;margin-bottom:3px}
-  .pane li::before{content:"\203A";position:absolute;left:0;color:var(--cyan)}
-  .pane em{font-style:normal;color:var(--gold)}
-  kbd{display:inline-block;min-width:22px;text-align:center;padding:2px 7px;margin:0 2px;
-      border:1px solid rgba(125,249,255,.3);background:rgba(125,249,255,.07);
-      font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--cyan)}
-  .keys{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;align-items:center;font-size:12.5px}
-  .keys>div:nth-child(even){color:#a9b6cc}
-  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
-  th,td{text-align:left;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.07)}
-  th{font-size:10px;letter-spacing:.16em;color:var(--dim);font-weight:600}
-  td:first-child{white-space:nowrap}
-  .sw{display:inline-block;width:8px;height:8px;margin-right:7px;vertical-align:middle}
+  .pause-hint{font-size:12px;letter-spacing:.08em;color:#9fb0c8;line-height:1.7;margin:0 0 18px}
+  .perk-now{font-size:13px;line-height:1.7;color:#c3cee0;margin:0 0 8px}
 
   /* ── 关卡选择 ── */
   .lvbar{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;gap:16px;flex-wrap:wrap}
@@ -458,14 +451,15 @@ if ('serviceWorker' in navigator) {
   .actions{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;align-items:center}
   .btn{appearance:none;font:inherit;font-size:13px;letter-spacing:.2em;cursor:pointer;
        padding:13px 32px;border:1px solid var(--cyan);color:var(--cyan);
-       background:rgba(125,249,255,.08);transition:.16s;position:relative;overflow:hidden}
+       background:rgba(125,249,255,.08);transition:.16s;position:relative;overflow:hidden;
+       text-decoration:none;display:inline-block}
   .btn::after{content:'';position:absolute;top:0;left:-120%;width:60%;height:100%;
        background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);
        transition:left .5s}
   .btn:hover::after{left:130%}
-  .btn:hover{background:var(--cyan);color:#04070e;box-shadow:0 0 28px rgba(125,249,255,.55)}
+  .btn:hover,.btn:focus-visible{background:var(--cyan);color:#04070e;box-shadow:0 0 28px rgba(125,249,255,.55);outline:none}
   .btn.ghost{border-color:rgba(255,255,255,.20);color:var(--dim);background:none}
-  .btn.ghost:hover{border-color:var(--ink);color:var(--ink);background:rgba(255,255,255,.05);box-shadow:none}
+  .btn.ghost:hover,.btn.ghost:focus-visible{border-color:var(--ink);color:var(--ink);background:rgba(255,255,255,.05);box-shadow:none}
   .btn.ghost:hover::after{display:none}
   .spacer{flex:1}
   .mute{appearance:none;font:inherit;font-size:11px;letter-spacing:.16em;cursor:pointer;
@@ -573,32 +567,6 @@ if ('serviceWorker' in navigator) {
               font-variant-numeric:tabular-nums;letter-spacing:.08em;
               display:flex;align-items:center;gap:6px}
   .shop-card.maxed .shop-price{color:var(--lime)}
-
-  /* ── 图鉴页 ── */
-  .cx-h{font-size:12px;letter-spacing:.22em;color:#e8f1ff;margin:22px 0 10px;
-        display:flex;align-items:baseline;gap:10px}
-  .cx-h:first-child{margin-top:0}
-  .cx-h span{font-size:8.5px;letter-spacing:.2em;color:var(--dim)}
-  .cx-h::after{content:'';flex:1;height:1px;
-        background:linear-gradient(90deg,color-mix(in srgb,var(--na,#4d7cff) 40%,transparent),transparent)}
-  .cx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:10px}
-  .cx-card{--c:#7df9ff;display:flex;gap:12px;padding:11px;border:1px solid rgba(255,255,255,.09);
-        background:linear-gradient(160deg,rgba(10,16,30,.72),rgba(6,10,20,.78));
-        position:relative;transition:.2s}
-  .cx-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;
-        background:var(--c);box-shadow:0 0 12px var(--c);opacity:.75}
-  .cx-card:hover{border-color:color-mix(in srgb,var(--c) 55%,transparent);
-        box-shadow:0 0 24px color-mix(in srgb,var(--c) 14%,transparent)}
-  .cx-img{width:88px;height:88px;flex:0 0 88px;background:rgba(4,8,16,.55);
-        border:1px solid rgba(255,255,255,.06)}
-  .cx-body{min-width:0;display:flex;flex-direction:column}
-  .cx-name{font-size:15px;font-weight:800;letter-spacing:.05em;color:#e8f1ff}
-  .cx-tag{font-size:8.5px;letter-spacing:.2em;color:var(--c);opacity:.9;margin-top:3px}
-  .cx-stats{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:7px}
-  .cx-stats span{font-size:10.5px;color:#c3cee0;font-variant-numeric:tabular-nums}
-  .cx-stats i{font-style:normal;color:var(--dim);margin-right:3px;font-size:9px}
-  .cx-desc{font-size:10.5px;color:#9fb0c8;line-height:1.55;margin-top:6px}
-  .cx-note{font-size:10px;color:var(--dim);letter-spacing:.06em;margin-top:16px;line-height:1.7}
 </style>
 </head>
 <body data-page-node-id="jMWHPJaszSBBgjbqzPfUxM">
@@ -672,7 +640,7 @@ if ('serviceWorker' in navigator) {
     <button id="touchDash" class="touch-btn" aria-label="冲刺">DASH</button>
   </div>
 
-  <div id="overlay" class="on" data-page-node-id="ugP34pWImF0HUPRX1eajHA"><div class="panel" id="panel" data-page-node-id="0I1gIr83BxRQDvhsMA5Zxa"></div></div>
+  <div id="overlay" class="on" data-mode="menu" data-page-node-id="ugP34pWImF0HUPRX1eajHA"><div class="panel" id="panel" data-page-node-id="0I1gIr83BxRQDvhsMA5Zxa"></div></div>
   <div id="rotateLock" aria-live="polite">
     <div class="phone-ico" aria-hidden="true"></div>
     <p class="rl-cn">请将设备旋转至横屏</p>

@@ -85,10 +85,17 @@ def draw_source(size, maskable=False):
 
 def save(img, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    if FORCE or not os.path.exists(path):
-        img.save(path, optimize=True)
-        return True
-    return False
+    if not (FORCE or not os.path.exists(path)):
+        return False
+    out = img
+    # 不透明图走 256 色调色板，避免 1024 源图派生出数百 KB 的真彩 PNG
+    rgba = img.convert('RGBA')
+    if rgba.getchannel('A').getextrema() == (255, 255):
+        out = rgba.convert('RGB').quantize(
+            colors=256, method=Image.Quantize.MEDIANCUT,
+            dither=Image.Dither.FLOYDSTEINBERG)
+    out.save(path, optimize=True, compress_level=9)
+    return True
 
 
 def make_padded(src, size, pad_ratio=0.18, bg=BG):

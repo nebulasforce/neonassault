@@ -12,12 +12,165 @@ usage() {
   cat <<'EOF'
 用法：
   make push MSG="说明"              提交并推到 origin（触发 GitHub Pages）
-  make release MSG="说明"           提交、打 tag、推送（触发 APK / Win / mac / 鸿蒙打包）
+  make release MSG="说明"           提交、打 tag、等待 APK / Win / mac / 鸿蒙挂上 Release
   make release VERSION=1.2.1 MSG="说明"
+  make release WAIT=0 MSG="说明"    推完即返回，不等待打包
   make tag                          用当前 package.json 版本打 tag 并推送（不提交）
+  make wait                         等待当前版本的 GitHub Actions 打包结束
 
 环境：若本机 127.0.0.1:7890 有代理，会自动走它，避免直连 GitHub 卡住。
 EOF
+}
+
+github_repo() {
+  local url
+  url="$(git remote get-url origin 2>/dev/null || true)"
+  url="${url%.git}"
+  url="${url#git@github.com:}"
+  url="${url#https://github.com/}"
+  url="${url#ssh://git@github.com/}"
+  echo "$url"
+}
+
+# 查询 tag 对应的 Release 工作流和资源。stdout 为 KEY=value。
+release_status() {
+  local repo="$1" ref="$2"
+  python3 - "$repo" "$ref" <<'PY'
+import json, sys, urllib.error, urllib.request
+repo, tag = sys.argv[1], sys.argv[2]
+headers = {"User-Agent": "neonassault-release-wait", "Accept": "application/vnd.github+json"}
+
+def get(url):
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+try:
+    runs = get(f"https://api.github.com/repos/{repo}/actions/runs?per_page=15")
+except Exception as e:
+    print("STATE=error")
+    print("ERROR=" + str(e).replace("\n", " "))
+    sys.exit(0)
+
+run = None
+for r in runs.get("workflow_runs", []):
+    if r.get("name") == "Release packages" and r.get("head_branch") == tag:
+        run = r
+        break
+if not run:
+    print("STATE=pending")
+    print("CONCLUSION=")
+    print("RUN=")
+else:
+    print(f"STATE={run.get('status') or 'unknown'}")
+    print(f"CONCLUSION={run.get('conclusion') or ''}")
+    print(f"RUN={run.get('html_url') or ''}")
+
+try:
+    rel = get(f"https://api.github.com/repos/{repo}/releases/tags/{tag}")
+except urllib.error.HTTPError as e:
+    if e.code == 404:
+        print("ASSETS=")
+        print("DRAFT=")
+        print("URL=")
+        sys.exit(0)
+    print("ASSETS=")
+    print("DRAFT=")
+    print("URL=")
+    sys.exit(0)
+except Exception:
+    print("ASSETS=")
+    print("DRAFT=")
+    print("URL=")
+    sys.exit(0)
+
+names = [a["name"] for a in rel.get("assets") or []]
+print("ASSETS=" + ",".join(names))
+print("DRAFT=" + str(bool(rel.get("draft"))).lower())
+print(f"URL={rel.get('html_url') or ''}")
+PY
+}
+
+wait_for_packages() {
+  local ref="$1"
+  local repo elapsed now start
+  local wait_on="${WAIT:-1}"
+  local timeout="${WAIT_TIMEOUT:-2400}"
+  repo="$(github_repo)"
+
+  echo "工作流：https://github.com/${repo}/actions"
+  echo "Release：https://github.com/${repo}/releases/tag/${ref}"
+
+  if [[ "$wait_on" != "1" ]]; then
+    echo "WAIT=0，不等待打包。"
+    return 0
+  fi
+
+  echo "→ 等待 GitHub Actions 把 APK / Win / mac / 鸿蒙挂上 ${ref}（最多 $((timeout / 60)) 分钟，WAIT=0 可跳过）"
+  start="$(date +%s)"
+    local state conclusion run_url assets draft rel_url err
+    while true; do
+    now="$(date +%s)"
+    elapsed=$((now - start))
+    if (( elapsed > timeout )); then
+      echo "等待超时。进度：https://github.com/${repo}/actions" >&2
+      exit 1
+    fi
+
+    state=pending
+    conclusion=
+    run_url=
+    assets=
+    draft=
+    rel_url=
+    err=
+    while IFS= read -r line; do
+      case "$line" in
+        STATE=*) state="${line#STATE=}" ;;
+        CONCLUSION=*) conclusion="${line#CONCLUSION=}" ;;
+        RUN=*) run_url="${line#RUN=}" ;;
+        ASSETS=*) assets="${line#ASSETS=}" ;;
+        DRAFT=*) draft="${line#DRAFT=}" ;;
+        URL=*) rel_url="${line#URL=}" ;;
+        ERROR=*) err="${line#ERROR=}" ;;
+      esac
+    done < <(release_status "$repo" "$ref" || true)
+
+    printf '… %sm%ss  ' "$((elapsed / 60))" "$((elapsed % 60))"
+    if [[ "$state" == "error" ]]; then
+      printf '查询 GitHub 失败，重试'
+      [[ -n "$err" ]] && printf '（%s）' "$err"
+    else
+      printf 'Actions=%s' "$state"
+      [[ -n "$conclusion" ]] && printf '/%s' "$conclusion"
+    fi
+    printf '\n'
+
+    if [[ "$state" == "completed" && "$conclusion" == "failure" ]]; then
+      echo "打包失败：${run_url:-https://github.com/${repo}/actions}" >&2
+      exit 1
+    fi
+
+    if [[ ",$assets," == *",neonassault-android-universal.apk,"* && "$draft" == "false" ]]; then
+      echo
+      echo "打包完成：${rel_url:-https://github.com/${repo}/releases/tag/${ref}}"
+      echo "下载："
+      local f
+      IFS=',' read -ra _assets <<< "$assets"
+      for f in "${_assets[@]}"; do
+        [[ -n "$f" ]] && echo "  https://github.com/${repo}/releases/download/${ref}/${f}"
+      done
+      return 0
+    fi
+
+    if [[ "$state" == "completed" && "$conclusion" == "success" ]]; then
+      echo "CI 显示成功，但 Release 上还没有 APK（多半是 Immutable Releases 没挂上文件）。" >&2
+      echo "${run_url:-https://github.com/${repo}/actions}" >&2
+      exit 1
+    fi
+
+    sleep 25
+  done
 }
 
 enable_proxy() {
@@ -140,9 +293,8 @@ case "$cmd" in
       exit 1
     fi
     push_tag "${git_ref}"
-    echo "已推送 ${git_ref}，GitHub Actions 正在打包："
-    echo "https://github.com/nebulasforce/neonassault/actions"
-    echo "Release: https://github.com/nebulasforce/neonassault/releases/tag/${git_ref}"
+    echo "已推送 ${git_ref}"
+    wait_for_packages "${git_ref}"
     ;;
   tag)
     enable_proxy
@@ -153,7 +305,12 @@ case "$cmd" in
     fi
     push_tag "${git_ref}"
     echo "已推送 ${git_ref}"
-    echo "Release: https://github.com/nebulasforce/neonassault/releases/tag/${git_ref}"
+    wait_for_packages "${git_ref}"
+    ;;
+  wait)
+    enable_proxy
+    git_ref="${TAG:-v$(pkg_version)}"
+    wait_for_packages "${git_ref}"
     ;;
   *)
     usage >&2

@@ -64,4 +64,9 @@ const went = simulate(true, 180);
 assert.ok(went.y < box.y, '绕障后应到达箱子北侧，y=' + went.y);
 assert.ok(Math.abs(went.x - 300) > 40, '绕障过程应离开中线');
 
+/* 开阔地：朝向不变 */
+const open = { x: 80, y: 80, r: 16, wallT: 0, steerSide: 0, steerObs: null };
+const sOpen = A.steerAround(open, 1, 0, 500, 80, 1 / 60, list);
+assert.ok(Math.abs(sOpen.x - 1) < 1e-9 && Math.abs(sOpen.y) < 1e-9, '开阔地不应改向');
+
 console.log('test-steer: ok');
