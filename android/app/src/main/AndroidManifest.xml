@@ -19,6 +19,7 @@
             android:launchMode="singleTask"
             android:exported="true"
             android:screenOrientation="landscape"
+            android:hardwareAccelerated="true"
             android:resizeableActivity="false">
 
             <intent-filter>
