@@ -2,8 +2,8 @@
   "app": {
     "bundleName": "com.nebulasforce.neonassault",
     "vendor": "nebulasforce",
-    "versionCode": 1000012,
-    "versionName": "1.1.",
+    "versionCode": 1000013,
+    "versionName": "1.1.9",
     "icon": "$media:app_icon",
     "label": "$string:app_name",
     "minAPIVersion": 12,
