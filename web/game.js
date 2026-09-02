@@ -15,7 +15,7 @@ const $ = id => document.getElementById(id);
 
 /* ═══ 1. 配置：武器 / 敌人 / Boss / 关卡 ═════════════════ */
 const WEAPONS = [
-  { id:'pistol',  name:'脉冲手枪', key:'1', color:'#7df9ff',
+  { id:'pistol',  name:'脉冲枪', key:'1', color:'#7df9ff',
     dmg:26, rate:0.16,  speed:980,  spread:0.020, count:1, ammoMax:Infinity, auto:false,
     recoil:2.4, knock:90,  life:1.1,  pierce:0,  r:3.5, ico:10 },
   { id:'smg',     name:'撕裂者',   key:'2', color:'#ffe066',
@@ -142,7 +142,7 @@ const ACHIEVEMENTS = [
   { id:'flawless',      name:'FLAWLESS',      cn:'无伤猎杀', desc:'一局内未受任何伤害并击杀 BOSS', rarity:2, goal:1,     stat:'flawlessBoss' },
   { id:'high_score',    name:'HIGH SCORE',    cn:'霓虹之巅', desc:'单局得分达到 50,000',          rarity:2, goal:50000, stat:'bestRun' },
   { id:'expedition',    name:'EXPEDITION',    cn:'远征者',   desc:'通关 3 个区域',                rarity:1, goal:3,     stat:'sectorClears' },
-  { id:'iron_hand',     name:'IRON HAND',     cn:'铁手',     desc:'全程只用手枪通关一个区域',      rarity:3, goal:1,     stat:'pistolClear' },
+  { id:'iron_hand',     name:'IRON HAND',     cn:'铁手',     desc:'全程只用脉冲枪通关一个区域',    rarity:3, goal:1,     stat:'pistolClear' },
   { id:'ascetic',       name:'ASCETIC',       cn:'苦行',     desc:'不选任何强化通关一个区域',      rarity:3, goal:1,     stat:'noPerkClear' },
   { id:'pacification',  name:'PACIFICATION',  cn:'全境肃清', desc:'通关全部 8 个区域',            rarity:3, goal:8,     stat:'sectorClears' },
 ];
@@ -647,27 +647,109 @@ function buildGates() {
 }
 
 function inObstacle(x, y, pad) {
+  return !!hitObstacleIn(obstacles, x, y, pad);
+}
+
+function hitObstacleIn(list, x, y, pad) {
   pad = pad || 0;
-  for (const o of obstacles)
-    if (x > o.x - pad && x < o.x + o.w + pad && y > o.y - pad && y < o.y + o.h + pad) return true;
-  return false;
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i];
+    if (x > o.x - pad && x < o.x + o.w + pad && y > o.y - pad && y < o.y + o.h + pad) return o;
+  }
+  return null;
+}
+
+/* 离障碍最近的那条边（或角）的两个可走拐点。点在箱外时路径不穿箱体。 */
+function aroundWaypoints(o, x, y, pad) {
+  const L = o.x - pad, R = o.x + o.w + pad, T = o.y - pad, B = o.y + o.h + pad;
+  const tl = { x: L, y: T }, tr = { x: R, y: T };
+  const bl = { x: L, y: B }, br = { x: R, y: B };
+  if (x <= L) {
+    if (y <= T) return [tr, bl];
+    if (y >= B) return [tl, br];
+    return [tl, bl];
+  }
+  if (x >= R) {
+    if (y <= T) return [tl, br];
+    if (y >= B) return [tr, bl];
+    return [tr, br];
+  }
+  if (y <= T) return [tl, tr];
+  if (y >= B) return [bl, br];
+  const dl = x - L, dr = R - x, dt = y - T, db = B - y;
+  const m = Math.min(dl, dr, dt, db);
+  if (m === dl) return [tl, bl];
+  if (m === dr) return [tr, br];
+  if (m === dt) return [tl, tr];
+  return [bl, br];
+}
+
+/* 朝向被挡住时改走最近拐点；侧向粘滞，避免在长边上来回翻。 */
+function steerAround(e, mvx, mvy, tx, ty, dt, list) {
+  const sp = Math.hypot(mvx, mvy);
+  if (sp < 0.001) return { x: mvx, y: mvy };
+  const ux = mvx / sp, uy = mvy / sp;
+  const look = e.r + 26;
+  const o = hitObstacleIn(list, e.x + ux * look, e.y + uy * look, e.r + 2)
+          || hitObstacleIn(list, e.x, e.y, e.r + 1);
+  if (!o) {
+    e.wallT = 0;
+    e.steerObs = null;
+    return { x: mvx, y: mvy };
+  }
+  e.wallT = (e.wallT || 0) + dt;
+  if (e.steerObs !== o) { e.steerSide = 0; e.steerObs = o; }
+  const pts = aroundWaypoints(o, e.x, e.y, e.r + 10);
+  let best = null, bestCost = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const c = pts[i];
+    const dHere = Math.hypot(c.x - e.x, c.y - e.y);
+    if (dHere < 6) continue;
+    let cost = dHere + Math.hypot(c.x - tx, c.y - ty);
+    const side = Math.sign((c.x - e.x) * (ty - e.y) - (c.y - e.y) * (tx - e.x));
+    if (e.steerSide && side && side !== e.steerSide) cost += 420;
+    if (cost < bestCost) { bestCost = cost; best = c; }
+  }
+  if (!best) return { x: mvx, y: mvy };
+  const dx = best.x - e.x, dy = best.y - e.y;
+  const dl = Math.hypot(dx, dy) || 1;
+  const cross = dx * (ty - e.y) - dy * (tx - e.x);
+  e.steerSide = cross >= 0 ? 1 : -1;
+  return { x: dx / dl, y: dy / dl };
+}
+
+function resolveObstaclesIn(e, list) {
+  let nxSum = 0, nySum = 0, hit = false;
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i];
+    const hx = clamp(e.x, o.x, o.x + o.w), hy = clamp(e.y, o.y, o.y + o.h);
+    const dx = e.x - hx, dy = e.y - hy, d2 = dx * dx + dy * dy;
+    if (d2 >= e.r * e.r) continue;
+    hit = true;
+    const d = Math.sqrt(d2);
+    if (d > 0.001) {
+      const px = dx / d, py = dy / d;
+      e.x = hx + px * e.r; e.y = hy + py * e.r;
+      nxSum += px; nySum += py;
+    } else {
+      const l = e.x - o.x, rgt = o.x + o.w - e.x, t = e.y - o.y, btm = o.y + o.h - e.y;
+      const m = Math.min(l, rgt, t, btm);
+      if (m === l) { e.x = o.x - e.r; nxSum -= 1; }
+      else if (m === rgt) { e.x = o.x + o.w + e.r; nxSum += 1; }
+      else if (m === t) { e.y = o.y - e.r; nySum -= 1; }
+      else { e.y = o.y + o.h + e.r; nySum += 1; }
+    }
+  }
+  if (!hit) return;
+  const nl = Math.hypot(nxSum, nySum);
+  if (nl < 0.001) return;
+  const nx = nxSum / nl, ny = nySum / nl;
+  const vn = e.vx * nx + e.vy * ny;
+  if (vn < 0) { e.vx -= vn * nx; e.vy -= vn * ny; }
 }
 
 function resolveObstacles(e) {
-  for (const o of obstacles) {
-    const nx = clamp(e.x, o.x, o.x + o.w), ny = clamp(e.y, o.y, o.y + o.h);
-    const dx = e.x - nx, dy = e.y - ny, d2 = dx * dx + dy * dy;
-    if (d2 < e.r * e.r) {
-      const d = Math.sqrt(d2);
-      if (d > 0.001) { e.x = nx + dx / d * e.r; e.y = ny + dy / d * e.r; }
-      else {
-        const l = e.x - o.x, r = o.x + o.w - e.x, t = e.y - o.y, b = o.y + o.h - e.y;
-        const m = Math.min(l, r, t, b);
-        if (m === l) e.x = o.x - e.r; else if (m === r) e.x = o.x + o.w + e.r;
-        else if (m === t) e.y = o.y - e.r; else e.y = o.y + o.h + e.r;
-      }
-    }
-  }
+  resolveObstaclesIn(e, obstacles);
 }
 
 function spawnPos(minFromPlayer) {
@@ -1154,7 +1236,7 @@ function updatePlayer(dt) {
   const assistFire = autoFire && (autoAim ? !!(touchLock && !touchLock.dead) : anyLiveEnemy());
   const holdFire = mouse.down || assistFire;
   /* 触屏 / 方向键 / 自动发射：按住 = 持续开火（仍受武器自身射速 / 弹药限制）。
-     这样半自动武器（手枪、霰弹）也能在辅助或键盘下连发。 */
+     这样半自动武器（脉冲枪、霰弹）也能在辅助或键盘下连发。 */
   if (w.auto || touchMode || aimKey || autoFire) wantFire = holdFire;
   else { if (holdFire && !p.firedPress) wantFire = true; }
   if (holdFire) p.firedPress = true; else p.firedPress = false;
@@ -3349,7 +3431,7 @@ function newGame(sectorIdx) {
     player.owned[w.id] = true;
     player.ammo[w.id] = ammoMaxFor(w);
   }
-  player.wi = 1;
+  player.wi = 0;
   refreshPlayerStats();
   player.hp = player.hpMax;
   player.sh = player.shMax;
@@ -3505,8 +3587,8 @@ const TAB_CONTROLS = `
 
 const TAB_WEAPONS = `
 <table><tr><th>武器</th><th>单发</th><th>射速</th><th>DPS</th><th>弹药</th><th>定位</th></tr>
-<tr><td><span class="sw" style="background:#7df9ff"></span>脉冲手枪</td><td>26</td><td>6.3/s</td><td>162</td><td>∞</td><td>保底，永不缺弹</td></tr>
-<tr><td><span class="sw" style="background:#ffe066"></span>撕裂者 SMG</td><td>13</td><td>15.4/s</td><td>200</td><td>260</td><td>通用，起步武器</td></tr>
+<tr><td><span class="sw" style="background:#7df9ff"></span>脉冲枪</td><td>26</td><td>6.3/s</td><td>162</td><td>∞</td><td>机载标配，永不缺弹</td></tr>
+<tr><td><span class="sw" style="background:#ffe066"></span>撕裂者</td><td>13</td><td>15.4/s</td><td>200</td><td>260</td><td>机炮压制，弹药消耗快</td></tr>
 <tr><td><span class="sw" style="background:#ff8a5c"></span>爆裂霰弹</td><td>15×8</td><td>1.6/s</td><td>193</td><td>44</td><td>近身清场 + 击退</td></tr>
 <tr><td><span class="sw" style="background:#c77dff"></span>棱镜激光</td><td>17</td><td>14.3/s</td><td>243</td><td>220</td><td>穿透射线，直线高伤</td></tr>
 <tr><td><span class="sw" style="background:#ff4d6d"></span>微型导弹</td><td>30+80</td><td>1.2/s</td><td>130+AoE</td><td>14</td><td>范围爆破，注意自伤</td></tr>
@@ -3612,11 +3694,11 @@ function achWallHtml() {
    保证图鉴信息与游戏内实际数据永远一致。                    */
 const CODEX_DESC = {
   weapons: {
-    pistol:  '初始武器、弹药无限，半自动精准点射 — 任何局面下最可靠的保底',
-    smg:     '高射速泼水压制近中距离，输出稳定但弹药消耗极快',
-    shotgun: '一次喷射 8 颗弹丸，贴脸毁灭性伤害 + 大幅击退，容错率低',
-    laser:   '持续射线穿透路径上所有敌人，直线输出天花板，配穿甲质变',
-    rocket:  '撞击后 125 半径范围爆破，清密集怪群的王牌 — 小心自伤',
+    pistol:  '战机标配脉冲炮，弹药无限，半自动精准点射 — 任何局面下最可靠的保底',
+    smg:     '机载转管机炮，高射速泼水压制近中距离，输出稳定但弹药消耗极快',
+    shotgun: '机载霰射炮一次喷射 8 颗弹丸，近距毁灭性伤害 + 大幅击退，容错率低',
+    laser:   '机载棱镜射线穿透路径上所有敌人，直线输出天花板，配穿甲质变',
+    rocket:  '挂架微型导弹撞击后 125 半径范围爆破，清密集怪群的王牌 — 小心自伤',
   },
   enemies: {
     grunt:   '基础杂兵：中距单发点射 + 贴身撞击，数量多时最危险',
