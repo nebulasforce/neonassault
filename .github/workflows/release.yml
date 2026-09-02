@@ -16,48 +16,10 @@ permissions:
 
 env:
   NODE_VERSION: '22'
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
 jobs:
-  # Immutable Releases 一旦正式发布就不能再挂文件。必须先占住 draft，
-  # 等 APK / exe / dmg 传完再 publish。softprops/action-gh-release 遇到已有
-  # draft 会先发布再上传，v1.1.5 因此只有源码包。
-  draft:
-    name: Create draft release
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Ensure draft release exists
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NOTES: |
-            ## 下载
-
-            - **网页 / PWA**：https://nebulasforce.github.io/neonassault/
-            - **Android**：`neonassault-android-universal.apk`（debug 签名，可侧载）
-            - **Windows**：`neonassault-windows-x64-setup.exe` 安装包，或 `neonassault-windows-x64-portable.exe` 免安装
-            - **macOS**：`neonassault-macos-universal.dmg`（未公证，首次请右键 → 打开）
-            - **鸿蒙**：GitHub 打不出 HAP。`neonassault-harmonyos-deveco.zip` 已同步 `web/` 和图标，用 DevEco 打开 `harmonyos/` → Build Hap(s)
-
-            各端桌面图标 / 启动图标均由 `web/icons/na-cool-1024.png` 派生（PWA 为 `na-192.png` / `na-512.png`）。
-        run: |
-          set -euo pipefail
-          TAG="${{ env.RELEASE_TAG }}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            IS_DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft)
-            if [ "$IS_DRAFT" != "true" ]; then
-              echo "::error::Release $TAG 已经正式发布。仓库开启了 Immutable Releases，无法再附加 APK。请升版本号后重新 make release。"
-              exit 1
-            fi
-            echo "已有 draft $TAG，打包完成后上传。"
-          else
-            gh release create "$TAG" --draft --title "$TAG" --notes "$NOTES" --generate-notes
-            echo "已创建 draft $TAG"
-          fi
-
   android:
     name: Android APK
-    needs: [draft]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -108,7 +70,6 @@ jobs:
 
   harmonyos:
     name: HarmonyOS DevEco zip
-    needs: [draft]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -136,7 +97,6 @@ jobs:
 
   windows:
     name: Windows Electron
-    needs: [draft]
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -170,7 +130,6 @@ jobs:
 
   macos:
     name: macOS Electron
-    needs: [draft]
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -202,12 +161,17 @@ jobs:
             dist-electron/*.zip
           if-no-files-found: error
 
+  # Immutable Releases：正式发布后不能再挂文件。必须先建 draft、传完 APK
+  # 再 publish。softprops/action-gh-release 遇到已有 draft 会先发布再上传，
+  # v1.1.5 因此只有源码包。
   publish:
     name: GitHub Release
     needs: [android, harmonyos, windows, macos]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -215,7 +179,8 @@ jobs:
 
       - name: Upload assets then publish
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           NOTES: |
             ## 下载
 
@@ -228,17 +193,25 @@ jobs:
             各端桌面图标 / 启动图标均由 `web/icons/na-cool-1024.png` 派生（PWA 为 `na-192.png` / `na-512.png`）。
         run: |
           set -euo pipefail
-          TAG="${{ env.RELEASE_TAG }}"
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          echo "Publishing $TAG to $GH_REPO"
+          gh --version
           ls -lh dist
+          test -n "$TAG"
           test -f dist/neonassault-android-universal.apk
-
-          IS_DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft)
-          if [ "$IS_DRAFT" != "true" ]; then
-            echo "::error::Release $TAG 已正式发布，Immutable Releases 不允许再上传文件。"
-            exit 1
-          fi
 
           NOTES_FILE=$(mktemp)
           printf '%s\n' "$NOTES" > "$NOTES_FILE"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            IS_DRAFT=$(gh release view "$TAG" --json isDraft --jq .isDraft)
+            if [ "$IS_DRAFT" != "true" ]; then
+              echo "::error::Release $TAG 已正式发布，Immutable Releases 不允许再上传文件。请升版本号后重新 make release。"
+              exit 1
+            fi
+          else
+            gh release create "$TAG" --draft --title "$TAG" --notes-file "$NOTES_FILE" --target "${{ github.sha }}"
+          fi
+
           gh release upload "$TAG" dist/* --clobber
           gh release edit "$TAG" --draft=false --latest --notes-file "$NOTES_FILE"
