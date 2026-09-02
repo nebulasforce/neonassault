@@ -1,6 +1,6 @@
 import { AbilityConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window, LengthMetrics } from '@kit.ArkUI';
+import { window } from '@kit.ArkUI';
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
@@ -15,6 +15,10 @@ export default class EntryAbility extends UIAbility {
     const mainWindow = windowStage.getMainWindowSync();
     mainWindow.setWindowLayoutFullScreen(true);
     mainWindow.setWindowKeepScreenOn(true);
+    mainWindow.setPreferredOrientation(window.Orientation.AUTO_ROTATION_LANDSCAPE)
+      .catch(() => {
+        hilog.error(0x0000, 'NeonAssault', 'landscape lock fail');
+      });
 
     windowStage.loadContent('pages/Index', (err) => {
       if (err && err.code) {

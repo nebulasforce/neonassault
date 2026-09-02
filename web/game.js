@@ -197,6 +197,72 @@ function isHandheldShell() {
   return /Android|HarmonyOS|OpenHarmony|HUAWEI|iPad|iPhone|iPod/i.test(ua);
 }
 
+/* iPadOS 13+ 默认桌面 UA（Macintosh + 多点触控），UA 里没有 iPad */
+function isIPad() {
+  const ua = navigator.userAgent || '';
+  const plat = navigator.platform || '';
+  return /iPad/.test(ua)
+      || (plat === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1)
+      || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+}
+
+function hasTouch() {
+  return 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0;
+}
+
+/* 手机 / 平板（含鸿蒙、iPad 桌面 UA）。大屏触控显示器不锁横屏。 */
+function isMobileOrTablet() {
+  if (window.Capacitor) return true;
+  if (isIPad()) return true;
+  if (isHandheldShell()) return true;
+  if (!hasTouch()) return false;
+  const minSide = Math.min(screen.width || 0, screen.height || 0)
+                || Math.min(window.innerWidth || 0, window.innerHeight || 0);
+  return minSide > 0 && minSide <= 1366;
+}
+
+function isPortraitView() {
+  const vv = window.visualViewport;
+  const w = (vv && vv.width) || window.innerWidth;
+  const h = (vv && vv.height) || window.innerHeight;
+  return h > w;
+}
+
+function isForcedPortrait() {
+  return isMobileOrTablet() && isPortraitView();
+}
+
+let uiBooted = false;
+
+function applyBodyState() {
+  if (!document.body) return;
+  const mobile = isMobileOrTablet();
+  const touch = hasTouch() || mobile;
+  const cls = [];
+  if (touch) cls.push('touch');
+  if (mobile) cls.push('handheld');
+  if (mobile && isPortraitView()) cls.push('need-rotate');
+  if (uiBooted) {
+    if (state === 'playing') cls.push('playing');
+    else if (state === 'paused') cls.push('paused');
+  }
+  if (Q.handheld || (view.dpr && view.dpr < 0.95)) cls.push('lofi');
+  document.body.className = cls.join(' ');
+}
+
+function tryLockLandscape() {
+  if (!isMobileOrTablet()) return;
+  const ori = screen.orientation;
+  if (!ori || typeof ori.lock !== 'function') return;
+  const p = ori.lock('landscape');
+  if (p && typeof p.catch === 'function') p.catch(function () {});
+}
+
+function syncForcedLandscape() {
+  applyBodyState();
+  if (isForcedPortrait()) tryLockLandscape();
+}
+
 function inView(x, y, pad) {
   pad = pad || 48;
   return x + pad >= cam.x && x - pad <= cam.x + view.w
@@ -229,11 +295,12 @@ function syncQualityFromDpr() {
   Q.burstK = d < 0.55 ? 0.28 : d < 0.85 ? 0.55 : 1;
   Q.partMax = d < 0.55 ? 110 : d < 0.85 ? 260 : 900;
   Q.hudEvery = d < 0.7 ? 3 : d < 1 ? 2 : 1;
-  if (document.body) document.body.classList.toggle('lofi', Q.handheld || d < 0.95);
+  if (uiBooted) applyBodyState();
+  else if (document.body) document.body.classList.toggle('lofi', Q.handheld || d < 0.95);
 }
 
 function resize() {
-  Q.handheld = isHandheldShell() || ('ontouchstart' in window) || (navigator.maxTouchPoints > 1);
+  Q.handheld = isMobileOrTablet() || hasTouch();
   view.w = window.innerWidth;
   view.h = window.innerHeight;
   if (Q.handheld) {
@@ -249,6 +316,7 @@ function resize() {
   view.dpr = clampDpr(view.dpr > 0.05 ? view.dpr : start);
   applyBacking();
   syncQualityFromDpr();
+  if (uiBooted) syncForcedLandscape();
 }
 
 function adaptCanvas(dt) {
@@ -474,7 +542,7 @@ let sector = 0, SEC = SECTORS[0], theme = TEX.theme('dock');
 /* 移动端虚拟摇杆状态 */
 const stick = { active:false, x:0, y:0, id:null, cx:0, cy:0 };
 const aimStick = { active:false, x:0, y:0, id:null, cx:0, cy:0 };
-const isTouch = () => 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const isTouch = () => hasTouch();
 let touchMode = false;     // 触屏模式：半自动武器按住连发、隐藏鼠标准星
 let touchLock = null;      // 自动瞄准当前锁定的目标（用于画锁定框）
 let kbAimFiring = false;   // 方向键瞄准时由 updatePlayer 合成的开火状态，
@@ -3388,7 +3456,7 @@ function frame(now) {
 
   if (state === 'playing') {
     /* 竖屏时冻结模拟，避免旋转提示底下继续挨打 */
-    if (touchMode && window.innerHeight > window.innerWidth) {
+    if (isForcedPortrait()) {
       acc = 0;
     } else {
       if (aimStick.active && player) {
@@ -3538,9 +3606,7 @@ function newGame(sectorIdx) {
 
 function setState(s) {
   state = s;
-  /* 注意：保留 touch 类，否则触屏布局会整体失效 */
-  const cls = s === 'playing' ? 'playing' : s === 'paused' ? 'paused' : '';
-  document.body.className = (touchMode ? 'touch ' : '') + cls;
+  applyBodyState();
   if (s === 'playing' || s === 'paused') $('overlay').classList.remove('on');
   else $('overlay').classList.add('on');
   if (s === 'playing') { last = performance.now(); acc = 0; mouse.down = false; mouse.drag = false; }
@@ -4009,7 +4075,7 @@ function stickKnob(knob, s) {
 }
 
 function touchStart(e) {
-  if (touchMode && window.innerHeight > window.innerWidth) return;
+  if (isForcedPortrait()) return;
   SFX.init(); SFX.resume();
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i];
@@ -4054,18 +4120,6 @@ function touchEnd(e) {
 
 if (isTouch()) {
   touchMode = true;
-  document.body.classList.add('touch');
-  const lockLandscape = () => {
-    const ori = screen.orientation;
-    if (ori && typeof ori.lock === 'function') {
-      ori.lock('landscape').catch(() => {});
-    }
-  };
-  lockLandscape();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') lockLandscape();
-  });
-  window.addEventListener('orientationchange', lockLandscape);
   if (elMove && elAim) {
     canvas.addEventListener('touchstart', touchStart, { passive: false });
     canvas.addEventListener('touchmove',  touchMove,  { passive: false });
@@ -4095,9 +4149,27 @@ if (isTouch()) {
   };
   bindTouchTap('touchPrev', () => cycleWeapon(-1));
   bindTouchTap('touchNext', () => cycleWeapon(1));
-  /* 部分浏览器（尤其 iOS Safari）只在用户手势后才允许 lock */
-  window.addEventListener('touchend', lockLandscape, { once: true, passive: true });
 }
+
+/* 手机 / 平板强制横屏：系统 API 能锁就锁，锁不了就盖旋转提示。
+   浏览器通常要用户手势后才允许 orientation.lock，所以每次点按都再试。 */
+(function setupForcedLandscape() {
+  uiBooted = true;
+  const sync = () => { syncForcedLandscape(); };
+  window.addEventListener('orientationchange', sync);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      Q.warm = 0; Q.emaMs = 16.7;
+      sync();
+    }
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', sync);
+  }
+  window.addEventListener('pointerdown', tryLockLandscape, { passive: true });
+  window.addEventListener('touchend', tryLockLandscape, { passive: true });
+  sync();
+})();
 
 /* AIM / FIRE：pointerdown 一次即可，避免 touchstart+mousedown 连点把开关打回去 */
 ['hudAim', 'hudFire', 'touchAim', 'touchFire'].forEach(id => {
@@ -4147,6 +4219,8 @@ window.__NA = {
   get save() { return save; },
   get hitStop() { return hitStop; },
   get touchMode() { return touchMode; },
+  get needRotate() { return isForcedPortrait(); },
+  isMobileOrTablet, isPortraitView, tryLockLandscape,
   get autoAim() { return autoAim; },
   get autoFire() { return autoFire; },
   get touchAuto() { return autoAim && autoFire; },
