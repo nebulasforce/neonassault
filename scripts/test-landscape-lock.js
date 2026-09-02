@@ -33,6 +33,10 @@ assert.ok(!/body\.className\s*=\s*\(touchMode/.test(game), '不得再无条件�
 assert.ok(manifest.includes('"orientation": "landscape"'), 'PWA 须声明横屏');
 assert.ok(/screenOrientation="sensorLandscape"/.test(android), 'Android 须 sensorLandscape');
 assert.ok(activity.includes('SCREEN_ORIENTATION_SENSOR_LANDSCAPE'), 'Activity 须再次锁定横屏');
+assert.equal((activity.match(/private void tuneWebView/g) || []).length, 1,
+  'MainActivity 不得重复定义 tuneWebView（会导致 APK 编译失败）');
+assert.equal((activity.match(/public void onStart/g) || []).length, 1,
+  'MainActivity 不得重复定义 onStart');
 assert.ok(moduleJson.includes('"orientation": "auto_rotation_landscape"'),
   '鸿蒙 Ability 须 auto_rotation_landscape');
 assert.ok(ability.includes('AUTO_ROTATION_LANDSCAPE'), '鸿蒙窗口须 setPreferredOrientation 横屏');

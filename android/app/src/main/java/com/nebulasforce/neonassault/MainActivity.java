@@ -35,22 +35,3 @@ public class MainActivity extends BridgeActivity {
         settings.setOffscreenPreRaster(true);
     }
 }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        tuneWebView();
-    }
-
-    private void tuneWebView() {
-        if (getBridge() == null) return;
-        WebView webView = getBridge().getWebView();
-        if (webView == null) return;
-        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
-        }
-        WebSettings settings = webView.getSettings();
-        settings.setOffscreenPreRaster(true);
-    }
-}
