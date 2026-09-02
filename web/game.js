@@ -178,10 +178,16 @@ const ARENA_SIZES = [
 
 /* ═══ 2. 画布 ═══════════════════════════════════════════ */
 const canvas = $('game');
-const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+/* iOS / iPad WebKit 上 desynchronized 会出现空白画布；桌面与安卓仍走低延迟 */
+const iosLike = /iPad|iPhone|iPod/.test(navigator.userAgent || '')
+  || (navigator.platform === 'MacIntel' && (navigator.maxTouchPoints || 0) > 1)
+  || (/Macintosh/.test(navigator.userAgent || '') && (navigator.maxTouchPoints || 0) > 1);
+const ctx = canvas.getContext('2d', { alpha: false, desynchronized: !iosLike });
 const ARENA = { w: 2600, h: 2000 };
 const view = { w: 0, h: 0, dpr: 0 };
 const cam = { x: 0, y: 0, shake: 0, sx: 0, sy: 0 };
+let themeKey = 'dock';
+let floorPat = null, panelPat = null, skyPat = null;
 
 /* 动态分辨率：CSS 铺满屏幕，backing store 按帧时间爬升/下降。
    超过 ~1920 边长时部分安卓 GPU 会丢掉硬件纹理、改走 CPU。 */
@@ -278,15 +284,40 @@ function clampDpr(dpr) {
   return Math.max(Q.minDpr, dpr);
 }
 
+function cssViewSize() {
+  const app = $('app');
+  const vv = window.visualViewport;
+  let w = 0, h = 0;
+  if (app && app.clientWidth > 1 && app.clientHeight > 1) {
+    w = app.clientWidth; h = app.clientHeight;
+  } else if (vv && vv.width > 1 && vv.height > 1) {
+    w = vv.width; h = vv.height;
+  } else {
+    w = window.innerWidth; h = window.innerHeight;
+  }
+  return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(h)) };
+}
+
+function refreshPatterns() {
+  if (!window.TEX) return;
+  try {
+    floorPat = ctx.createPattern(TEX.floor(themeKey), 'repeat');
+    panelPat = ctx.createPattern(TEX.panel(themeKey), 'repeat');
+    skyPat   = ctx.createPattern(TEX.sky(themeKey), 'repeat');
+  } catch (e) {
+    floorPat = panelPat = skyPat = null;
+  }
+}
+
 function applyBacking() {
   const w = Math.max(1, Math.floor(view.w * view.dpr));
   const h = Math.max(1, Math.floor(view.h * view.dpr));
   if (canvas.width !== w || canvas.height !== h) {
     canvas.width = w;
     canvas.height = h;
+    /* 改 backing store 会重置 2D 状态，WebKit 上旧 CanvasPattern 会失效变黑 */
+    refreshPatterns();
   }
-  canvas.style.width = view.w + 'px';
-  canvas.style.height = view.h + 'px';
 }
 
 function syncQualityFromDpr() {
@@ -301,8 +332,9 @@ function syncQualityFromDpr() {
 
 function resize() {
   Q.handheld = isMobileOrTablet() || hasTouch();
-  view.w = window.innerWidth;
-  view.h = window.innerHeight;
+  const css = cssViewSize();
+  view.w = css.w;
+  view.h = css.h;
   if (Q.handheld) {
     Q.maxDpr = Math.min(window.devicePixelRatio || 1, 1.25);
     Q.minDpr = 0.42;
@@ -604,7 +636,6 @@ function shopBuy(id) {
   }
   return true;
 }
-let floorPat = null, panelPat = null, skyPat = null;
 const keys = Object.create(null);
 const mouse = { x: 0, y: 0, down: false, drag: false, sx: 0, sy: 0 };
 
@@ -636,10 +667,9 @@ function warpExit(from, to, px, py, vx, vy, rShip) {
 
 /* ═══ 5. 竞技场 ═════════════════════════════════════════ */
 function applyTheme(key) {
-  theme = TEX.theme(key);
-  floorPat = ctx.createPattern(TEX.floor(key), 'repeat');
-  panelPat = ctx.createPattern(TEX.panel(key), 'repeat');
-  skyPat   = ctx.createPattern(TEX.sky(key), 'repeat');
+  themeKey = key || 'dock';
+  theme = TEX.theme(themeKey);
+  refreshPatterns();
   document.documentElement.style.setProperty('--accent', theme.accent);
 }
 
@@ -2055,12 +2085,15 @@ function render() {
 
 /* 视差星空背景 */
 function drawSky() {
-  if (!skyPat) return;
   const ox = -cam.x * 0.22, oy = -cam.y * 0.22;
   ctx.save();
   ctx.translate(ox, oy);
-  ctx.fillStyle = skyPat;
+  ctx.fillStyle = theme.fog || '#040a12';
   ctx.fillRect(-ox - 4, -oy - 4, view.w + 8, view.h + 8);
+  if (skyPat) {
+    ctx.fillStyle = skyPat;
+    ctx.fillRect(-ox - 4, -oy - 4, view.w + 8, view.h + 8);
+  }
   ctx.restore();
 }
 
@@ -2071,8 +2104,12 @@ function drawFloor() {
   if (x1 <= x0 || y1 <= y0) return;
 
   ctx.save();
-  ctx.fillStyle = floorPat;
+  ctx.fillStyle = theme.base || '#0a1523';
   ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  if (floorPat) {
+    ctx.fillStyle = floorPat;
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  }
 
   if (Q.fx) {
     /* 能量网格线（主题色） */
@@ -2239,8 +2276,12 @@ function drawObstacles() {
     ctx.save();
     ctx.beginPath(); ctx.rect(o.x, o.y, o.w, o.h); ctx.clip();
     ctx.translate(o.x, o.y);
-    ctx.fillStyle = panelPat;
+    ctx.fillStyle = theme.panel ? theme.panel[0] : '#1c3350';
     ctx.fillRect(0, 0, o.w, o.h);
+    if (panelPat) {
+      ctx.fillStyle = panelPat;
+      ctx.fillRect(0, 0, o.w, o.h);
+    }
     ctx.restore();
 
     /* 顶部高光条 + 边缘 */
@@ -4211,6 +4252,7 @@ window.__NA = {
   get perks() { return perks; },
   get pickups() { return pickups; },
   get cam() { return cam; },
+  get view() { return view; },
   get authorMark() { return authorMark; },
   get arena() { return ARENA; },
   get mouse() { return mouse; },
