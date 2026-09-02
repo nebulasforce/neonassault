@@ -71,6 +71,17 @@ const AI_ = {}; ['drone','wasp','gunship'].forEach(k => { AI_[k] = AIR_TYPES[k];
 
 /* 空中单位视觉抬升高度（px），乘以各自的 alt */
 const AIR_LIFT = 48;
+const MISSILE_LIFT = 52;   // 巡航导弹离地高度，需高于掩体 OBS_H
+
+/* 空中机体的屏幕坐标（含高度透视）。地面单位原样返回。
+   光圈 / 锁定框 / 尾迹必须走这里，否则会画在投影上、看起来脱离机体。 */
+function airDrawPos(e) {
+  if (!e) return { x: 0, y: 0 };
+  if (!e.air) return { x: e.x, y: e.y };
+  const alt = e.alt || 0;
+  const lift = alt * AIR_LIFT + Math.sin(e.bob || 0) * 2.6;
+  return { x: e.x + alt * 9, y: e.y - lift };
+}
 
 /* Boss 基础血量，实际血量 = base × (1 + 关卡序号 × 0.5) */
 const BOSSES = [
@@ -575,6 +586,7 @@ const BOSS_INTRO_DUR = 1.7;
 let combo = 0, comboTimer = 0, kills = 0, shotsFired = 0, shotsHit = 0;
 let elapsed = 0, hintTimer = 0, flash = 0;
 let crateT = 4;            // 局内漂流补给下次生成倒计时
+let runSaveT = 8;          // 局内存档节流
 let hitStop = 0;           // 命中停顿剩余帧数
 let perks = [];            // 当前局已选强化
 let sector = 0, SEC = SECTORS[0], theme = TEX.theme('dock');
@@ -762,7 +774,23 @@ function hitObstacleIn(list, x, y, pad) {
   pad = pad || 0;
   for (let i = 0; i < list.length; i++) {
     const o = list[i];
-    if (x > o.x - pad && x < o.x + o.w + pad && y > o.y - pad && y < o.y + o.h + pad) return o;
+    if (x >= o.x - pad && x <= o.x + o.w + pad && y >= o.y - pad && y <= o.y + o.h + pad) return o;
+  }
+  return null;
+}
+
+/* 把点从掩体里推到最近空地。失败返回 null（调用方再走场地中心）。 */
+function placeFreeIn(list, arena, x, y, pad) {
+  pad = pad || 24;
+  x = clamp(x, 60, arena.w - 60);
+  y = clamp(y, 60, arena.h - 60);
+  if (!hitObstacleIn(list, x, y, pad)) return { x, y };
+  for (let i = 0; i < 32; i++) {
+    const a = (i / 32) * TAU;
+    const d = 40 + (i % 8) * 28;
+    const nx = clamp(x + Math.cos(a) * d, 60, arena.w - 60);
+    const ny = clamp(y + Math.sin(a) * d, 60, arena.h - 60);
+    if (!hitObstacleIn(list, nx, ny, pad)) return { x: nx, y: ny };
   }
   return null;
 }
@@ -793,7 +821,7 @@ function aroundWaypoints(o, x, y, pad) {
 }
 
 /* 朝向被挡住时改走最近拐点；侧向粘滞，避免在长边上来回翻。 */
-function steerAround(e, mvx, mvy, tx, ty, dt, list) {
+function steerAround(e, mvx, mvy, tx, ty, dt, list, bounds) {
   const sp = Math.hypot(mvx, mvy);
   if (sp < 0.001) return { x: mvx, y: mvy };
   const ux = mvx / sp, uy = mvy / sp;
@@ -807,6 +835,7 @@ function steerAround(e, mvx, mvy, tx, ty, dt, list) {
   }
   e.wallT = (e.wallT || 0) + dt;
   if (e.steerObs !== o) { e.steerSide = 0; e.steerObs = o; }
+  if (e.wallT > 2.2) e.steerSide = -(e.steerSide || 1);
   const pts = aroundWaypoints(o, e.x, e.y, e.r + 10);
   let best = null, bestCost = Infinity;
   for (let i = 0; i < pts.length; i++) {
@@ -816,6 +845,10 @@ function steerAround(e, mvx, mvy, tx, ty, dt, list) {
     let cost = dHere + Math.hypot(c.x - tx, c.y - ty);
     const side = Math.sign((c.x - e.x) * (ty - e.y) - (c.y - e.y) * (tx - e.x));
     if (e.steerSide && side && side !== e.steerSide) cost += 420;
+    if (bounds) {
+      const pad = bounds.pad || 50;
+      if (c.x < pad || c.x > bounds.w - pad || c.y < pad || c.y > bounds.h - pad) cost += 900;
+    }
     if (cost < bestCost) { bestCost = cost; best = c; }
   }
   if (!best) return { x: mvx, y: mvy };
@@ -860,15 +893,38 @@ function resolveObstacles(e) {
   resolveObstaclesIn(e, obstacles);
 }
 
+/* 夹在掩体与场边时：先弹出掩体，再夹回场地，仍重叠则沿环找空位。
+   loose：空中单位可略越场边切入/脱离，但仍不能钻进内墙。 */
+function confineGround(e, loose) {
+  resolveObstacles(e);
+  const lo = loose ? -280 : e.r;
+  const hiX = loose ? ARENA.w + 280 : ARENA.w - e.r;
+  const hiY = loose ? ARENA.h + 280 : ARENA.h - e.r;
+  e.x = clamp(e.x, lo, hiX);
+  e.y = clamp(e.y, lo, hiY);
+  if (!inObstacle(e.x, e.y, e.r * 0.4)) return;
+  for (let i = 0; i < 16; i++) {
+    const a = i * TAU / 16;
+    const nx = clamp(e.x + Math.cos(a) * (e.r + 24), lo, hiX);
+    const ny = clamp(e.y + Math.sin(a) * (e.r + 24), lo, hiY);
+    if (!inObstacle(nx, ny, e.r)) { e.x = nx; e.y = ny; e.vx = 0; e.vy = 0; return; }
+  }
+}
+
 function spawnPos(minFromPlayer) {
   const mfp = minFromPlayer == null ? 520 : minFromPlayer;
-  for (let i = 0; i < 90; i++) {
-    const x = rand(90, ARENA.w - 90), y = rand(90, ARENA.h - 90);
-    if (inObstacle(x, y, 34)) continue;
+  const pad = 42;
+  let fallback = null;
+  for (let i = 0; i < 160; i++) {
+    const x = rand(100, ARENA.w - 100), y = rand(100, ARENA.h - 100);
+    if (inObstacle(x, y, pad)) continue;
+    if (!fallback) fallback = { x, y };
     if (player && dist(x, y, player.x, player.y) < mfp) continue;
     return { x, y };
   }
-  return { x: rand(90, ARENA.w - 90), y: rand(90, ARENA.h - 90) };
+  if (fallback) return fallback;
+  const ring = placeFreeIn(obstacles, ARENA, ARENA.w / 2, ARENA.h / 2, pad);
+  return ring || { x: ARENA.w / 2, y: ARENA.h / 2 };
 }
 
 /* ═══ 6. 实体 ═══════════════════════════════════════════ */
@@ -916,6 +972,29 @@ function makePlayer() {
 
 function ammoMaxFor(w) {
   return w.ammoMax === Infinity ? Infinity : Math.round(w.ammoMax * (1 + pval('ammoMult', 0)));
+}
+
+/* 按关卡 guns 发放武器。通关自动进下一关与从菜单重进必须走同一条路，
+   否则会出现「过关没枪、重新进入才解锁」。 */
+function grantSectorGunsTo(owned, ammo, guns, weapons, ammoFor) {
+  const W = weapons;
+  const n = Math.min(W.length, Math.max(2, guns | 0));
+  const newly = [];
+  for (let i = 0; i < n; i++) {
+    const w = W[i];
+    if (!owned[w.id]) newly.push(w);
+    owned[w.id] = true;
+    ammo[w.id] = ammoFor ? ammoFor(w) : w.ammoMax;
+  }
+  return newly;
+}
+function grantSectorGuns(p) {
+  if (!p) return;
+  const newly = grantSectorGunsTo(p.owned, p.ammo, SEC.guns, WEAPONS, ammoMaxFor);
+  if (newly.length) {
+    showHint('解锁武器：' + newly.map(w => w.name).join('、'));
+    slotsBuilt = false;
+  }
 }
 
 function refreshPlayerStats() {
@@ -976,23 +1055,29 @@ function makeBoss(s) {
            fireT: 0, burstLeft: 0 };
 }
 
-/* 在玩家视野外侧挑一个仍在场地内的切入点；场地太小则退而求其次取最深的一处 */
+/* 在玩家视野外侧挑一个仍在场地内、且不落在掩体内的切入点 */
 function airSpawn(rad) {
   const cx = player ? player.x : ARENA.w / 2;
   const cy = player ? player.y : ARENA.h / 2;
   const pad = 70;
-  let best = { x: cx, y: cy }, bestScore = -Infinity;
-  for (let i = 0; i < 12; i++) {
+  const obsPad = 48;
+  let best = null, bestScore = -Infinity;
+  for (let i = 0; i < 24; i++) {
     const a = rand(0, TAU);
     const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
     const s = Math.min(x - pad, ARENA.w - pad - x, y - pad, ARENA.h - pad - y);
-    if (s >= 0) return { x, y };
+    if (s >= 0 && !inObstacle(x, y, obsPad)) return { x, y };
+    const nx = clamp(x, pad, ARENA.w - pad);
+    const ny = clamp(y, pad, ARENA.h - pad);
+    if (inObstacle(nx, ny, obsPad)) continue;
     if (s > bestScore) {
       bestScore = s;
-      best = { x: clamp(x, pad, ARENA.w - pad), y: clamp(y, pad, ARENA.h - pad) };
+      best = { x: nx, y: ny };
     }
   }
-  return best;
+  if (best) return best;
+  return placeFreeIn(obstacles, ARENA, ARENA.w / 2, ARENA.h / 2, obsPad)
+      || { x: ARENA.w / 2, y: ARENA.h / 2 };
 }
 
 /* 生成空中单位。从玩家视野边缘外切入：既不会凭空出现在脸上，也不会飞半天才接敌 */
@@ -1007,6 +1092,7 @@ function makeAir(type, scale) {
            hitT: 0, angle: rand(0, TAU), alt: t.alt, bob: rand(0, TAU),
            strafe: Math.random() < 0.5 ? 1 : -1, strafeT: rand(0.8, 2.0),
            air: true, boss: false, dead: false, spawnT: 0.55,
+           wallT: 0, steerSide: 0, steerObs: null,
            mode: t.mode, state: 'enter', stateT: rand(0.4, 1.0),
            runA: 0, bombCd: rand(1.0, 2.2) };
 }
@@ -1044,6 +1130,7 @@ function enterSector(s) {
     player.gateCd = 0;
     cam.x = clamp(player.x - view.w / 2, 0, Math.max(0, ARENA.w - view.w));
     cam.y = clamp(player.y - view.h / 2, 0, Math.max(0, ARENA.h - view.h));
+    grantSectorGuns(player);
   }
   flash = 1;
   banner('SECTOR ' + SEC.n, theme.cn + ' · ' + theme.en, theme.accent);
@@ -1181,6 +1268,7 @@ function pickPerk(idx) {
   takePerk(choice.def.id);
   setState('playing');
   intermission = 1.0; // 选择后短暂间隔进入下一波
+  persistRun();
 }
 
 function dropWeapon() {
@@ -1197,7 +1285,9 @@ function driftVel() {
 
 function pushPickup(x, y, kind, extra) {
   if (pickups.length >= 12) pickups.shift();
-  x = clamp(x, 60, ARENA.w - 60); y = clamp(y, 60, ARENA.h - 60);
+  const placed = placeFreeIn(obstacles, ARENA, x, y, ((extra && extra.r) || 14) + 10);
+  if (placed) { x = placed.x; y = placed.y; }
+  else { x = clamp(x, 60, ARENA.w - 60); y = clamp(y, 60, ARENA.h - 60); }
   const v = driftVel();
   pickups.push(Object.assign({
     x, y, r: 14, kind, color: PICKUPS[kind] ? PICKUPS[kind].color : '#ffe066',
@@ -1374,9 +1464,9 @@ function updatePlayer(dt) {
     if (u.x < 50 || u.x > ARENA.w - 50) { u.vx *= -1; u.x = clamp(u.x, 50, ARENA.w - 50); }
     if (u.y < 50 || u.y > ARENA.h - 50) { u.vy *= -1; u.y = clamp(u.y, 50, ARENA.h - 50); }
     if (inObstacle(u.x, u.y, u.r + 6)) {
-      u.vx *= -1; u.vy *= -1;
-      u.x = clamp(u.x + u.vx * dt, 50, ARENA.w - 50);
-      u.y = clamp(u.y + u.vy * dt, 50, ARENA.h - 50);
+      const dummy = { x: u.x, y: u.y, r: u.r + 6, vx: u.vx, vy: u.vy };
+      confineGround(dummy);
+      u.x = dummy.x; u.y = dummy.y; u.vx = dummy.vx; u.vy = dummy.vy;
     }
     if (u.life <= 0) {
       burst(u.x, u.y, 8, u.color, 140, 2.4, 0.28);
@@ -1450,6 +1540,7 @@ function fire(w) {
       r: w.r, dmg: Math.round(w.dmg * dmgMul), life: w.life,
       pierce: w.pierce + pierceAdd, hitIds: null,
       color: w.color, knock: w.knock, explode: w.explode || null,
+      cruise: !!w.explode, target: null,
     });
   }
   const n = w.count > 1 ? 10 : 4;
@@ -1649,8 +1740,16 @@ function updateEnemies(dt) {
       mvy = Math.sin(toA) * along + Math.cos(toA) * 0.75 * e.strafe;
     } else { mvx = Math.cos(toA); mvy = Math.sin(toA); }
 
-    const steered = steerAround(e, mvx, mvy, p.x, p.y, dt, obstacles);
+    const steered = steerAround(e, mvx, mvy, p.x, p.y, dt, obstacles,
+      { w: ARENA.w, h: ARENA.h, pad: 70 });
     mvx = steered.x; mvy = steered.y;
+    const edge = 64;
+    if (e.x < edge) mvx += (edge - e.x) / edge;
+    if (e.x > ARENA.w - edge) mvx -= (e.x - (ARENA.w - edge)) / edge;
+    if (e.y < edge) mvy += (edge - e.y) / edge;
+    if (e.y > ARENA.h - edge) mvy -= (e.y - (ARENA.h - edge)) / edge;
+    const ml = Math.hypot(mvx, mvy);
+    if (ml > 0.001) { mvx /= ml; mvy /= ml; }
 
     const sp = t.speed * (SEC.mods.spd || 1) * (e.type === 'runner' && d < 260 ? 1.25 : 1);
     const k = 1 - Math.pow(0.004, dt);
@@ -1703,7 +1802,10 @@ function updateEnemies(dt) {
       }
     }
   }
-  for (const e of enemies) if (!e.boss && !e.air) resolveObstacles(e);  // 飞行单位越过障碍
+  for (const e of enemies) {
+    if (e.air) confineGround(e, true);
+    else if (!e.boss) confineGround(e);
+  }
 }
 
 /* ═══ 8.5 空中单位 AI ════════════════════════════════════
@@ -1711,7 +1813,7 @@ function updateEnemies(dt) {
      orbit  — 保持距离绕玩家盘旋并点射
      strafe — 俯冲掠袭：接近后锁定方向全速穿过并扫射，再拉起脱离
      bomb   — 巡航投弹：绕行并定期投下带落点预警的航弹
-   共性：不受障碍物阻挡、可越出赛场边缘后自动修正回场。
+   共性：内墙作为掩体（绕行 + 弹出），可略越出赛场边缘后自动修正回场。
    ──────────────────────────────────────────────────────── */
 function updateAir(e, dt, d, toA) {
   const p = player, t = e.t;
@@ -1758,19 +1860,23 @@ function updateAir(e, dt, d, toA) {
   const ml = Math.hypot(mvx, mvy);
   if (ml > 0.001) { mvx /= ml; mvy /= ml; }
 
+  const steered = steerAround(e, mvx, mvy, p.x, p.y, dt, obstacles,
+    { w: ARENA.w, h: ARENA.h, pad: 50 });
+  mvx = steered.x; mvy = steered.y;
+
   const rush = (t.mode === 'strafe' && e.state === 'run') ? 1.6 : 1;
   const sp = t.speed * (SEC.mods.spd || 1) * rush;
   const k = 1 - Math.pow(0.02, dt);
   e.vx = lerp(e.vx, mvx * sp, k);
   e.vy = lerp(e.vy, mvy * sp, k);
   e.x += e.vx * dt; e.y += e.vy * dt;
-  e.x = clamp(e.x, -280, ARENA.w + 280);
-  e.y = clamp(e.y, -280, ARENA.h + 280);
+  confineGround(e, true);
 
-  /* 引擎尾迹（画在机体后方，制造速度感） */
+  /* 引擎尾迹（画在机体后方，必须跟视觉抬升，否则光圈会掉在投影上） */
   if (Math.random() < 0.6) {
-    particle(e.x - Math.cos(e.angle) * e.r * 0.85,
-             e.y - Math.sin(e.angle) * e.r * 0.85,
+    const ap = airDrawPos(e);
+    particle(ap.x - Math.cos(e.angle) * e.r * 0.85,
+             ap.y - Math.sin(e.angle) * e.r * 0.85,
              -e.vx * 0.14 + rand(-22, 22), -e.vy * 0.14 + rand(-22, 22),
              0.32, t.color, 2.2, 0.9);
   }
@@ -1852,7 +1958,8 @@ function updateBoss(b, dt, d, toA) {
     const along = d > 330 ? 1 : d < 220 ? -1 : 0;
     let mvx = Math.cos(toA) * along - Math.sin(toA) * 0.8;
     let mvy = Math.sin(toA) * along + Math.cos(toA) * 0.8;
-    const steered = steerAround(b, mvx, mvy, p.x, p.y, dt, obstacles);
+    const steered = steerAround(b, mvx, mvy, p.x, p.y, dt, obstacles,
+      { w: ARENA.w, h: ARENA.h, pad: 80 });
     mvx = steered.x; mvy = steered.y;
     const k = 1 - Math.pow(0.01, dt);
     b.vx = lerp(b.vx, mvx * b.speed, k);
@@ -1899,9 +2006,9 @@ function updateBoss(b, dt, d, toA) {
     b.vx *= 0.9; b.vy *= 0.9;
     if (b.subN < 4 && b.pt < 2.4 - b.subN * 0.45) {
       b.subN++;
+      const sp = spawnPos(220);
       portals.push({
-        x: clamp(b.x + rand(-260, 260), 60, ARENA.w - 60),
-        y: clamp(b.y + rand(-260, 260), 60, ARENA.h - 60),
+        x: sp.x, y: sp.y,
         t: 0.55, max: 0.55, r: 26, enemy: Math.random() < 0.5 ? 'runner' : 'grunt',
         scale: hpScale(),
       });
@@ -1911,7 +2018,7 @@ function updateBoss(b, dt, d, toA) {
 
   b.x = clamp(b.x, b.r, ARENA.w - b.r);
   b.y = clamp(b.y, b.r, ARENA.h - b.r);
-  resolveObstacles(b);
+  confineGround(b);
   if (d < b.r + p.r + 2 && b.touchCd <= 0) { hurtPlayer(22, b.x, b.y); b.touchCd = 0.8; }
 }
 
@@ -1921,10 +2028,25 @@ function updateBullets(dt) {
     const b = pBullets[i];
     b.life -= dt;
     if (b.life <= 0) { pBullets.splice(i, 1); continue; }
-    /* 火箭弹拖曳烟迹 */
+    /* 巡航导弹：转向最近敌人，飞越内墙 */
+    if (b.explode) {
+      if (!b.target || b.target.dead || b.target.spawnT > 0)
+        b.target = nearestLiveEnemy(player);
+      const tgt = b.target;
+      if (tgt) {
+        const want = Math.atan2(tgt.y - b.y, tgt.x - b.x);
+        const ang = Math.atan2(b.vy, b.vx);
+        const na = angLerp(ang, want, 1 - Math.pow(0.002, dt));
+        const sp = Math.hypot(b.vx, b.vy) || 560;
+        b.vx = Math.cos(na) * sp;
+        b.vy = Math.sin(na) * sp;
+      }
+    }
+    /* 火箭弹拖曳烟迹（巡航时跟抬升后的弹体） */
     if (b.explode && Math.random() < 0.95) {
       const a = Math.atan2(b.vy, b.vx);
-      particle(b.x - Math.cos(a) * 12, b.y - Math.sin(a) * 12,
+      const ly = b.y - (b.cruise ? MISSILE_LIFT : 0);
+      particle(b.x - Math.cos(a) * 12, ly - Math.sin(a) * 12,
                -b.vx * 0.12 + rand(-18, 18), -b.vy * 0.12 + rand(-18, 18),
                0.42, '#9aa6bd', 3.2, 0.9);
     }
@@ -1933,7 +2055,7 @@ function updateBullets(dt) {
     for (let s = 0; s < steps && !dead; s++) {
       b.x += b.vx * dt / steps; b.y += b.vy * dt / steps;
       if (b.x < 0 || b.y < 0 || b.x > ARENA.w || b.y > ARENA.h) { dead = true; break; }
-      if (inObstacle(b.x, b.y, b.r)) { burst(b.x, b.y, 5, b.color, 150, 2, 0.2); dead = true; break; }
+      if (!b.explode && inObstacle(b.x, b.y, b.r)) { burst(b.x, b.y, 5, b.color, 150, 2, 0.2); dead = true; break; }
       for (const e of enemies) {
         if (e.dead || e.spawnT > 0) continue;
         if (b.hitIds && b.hitIds.has(e)) continue;
@@ -1982,8 +2104,9 @@ function damageEnemy(e, dmg, angle, knock, forceCrit) {
   e.hp -= dmg;
   e.hitT = 0.09;
   if (knock && !e.boss) { e.vx += Math.cos(angle) * knock; e.vy += Math.sin(angle) * knock; }
-  burst(e.x + rand(-6, 6), e.y + rand(-6, 6), isCrit ? 6 : 3, e.color, isCrit ? 280 : 200, isCrit ? 3 : 2.2, 0.22);
-  hitFog(e.x, e.y, e.color, e.r * (isCrit ? 1.35 : 1.0));
+  const fx = e.air ? airDrawPos(e) : e;
+  burst(fx.x + rand(-6, 6), fx.y + rand(-6, 6), isCrit ? 6 : 3, e.color, isCrit ? 280 : 200, isCrit ? 3 : 2.2, 0.22);
+  hitFog(fx.x, fx.y, e.color, e.r * (isCrit ? 1.35 : 1.0));
   SFX.hit();
 
   /* 浮动伤害数字 */
@@ -2263,7 +2386,7 @@ function drawAuthorMark() {
   ctx.restore();
 }
 
-const OBS_H = 15;   // 掩体立体高度
+const OBS_H = 42;   // 掩体立体高度，需低于巡航导弹 MISSILE_LIFT
 function drawObstacles() {
   for (const o of obstacles) {
     if (o.x + o.w + 40 < cam.x || o.x - 40 > cam.x + view.w) continue;
@@ -2920,8 +3043,8 @@ function drawAir() {
   for (const e of enemies) {
     if (!e.air || e.spawnT > 0) continue;
     if (!inView(e.x, e.y, e.r * 3 + 48)) continue;
-    const lift = e.alt * AIR_LIFT + Math.sin(e.bob) * 2.6;
-    const x = e.x + e.alt * 9, y = e.y - lift;
+    const ap = airDrawPos(e);
+    const x = ap.x, y = ap.y;
     const size = e.r * 2.6;
     const spr = e.sprite || (e.t && e.t.sprite) || '';
     /* 沿机体轮廓打一层同色霓虹辉光，深色机体在暗战场上也能一眼辨认 */
@@ -3022,20 +3145,26 @@ function drawPlayerBullets() {
   }
   ctx.restore();
 
-  /* 火箭弹：仿真导弹贴图 + 尾焰 + 烟迹 */
+  /* 火箭弹：巡航高度 + 地面投影，越内墙看起来才合理 */
   for (const b of pBullets) {
     if (!b.explode) continue;
-    if (!inView(b.x, b.y, 40)) continue;
+    if (!inView(b.x, b.y, 40 + MISSILE_LIFT)) continue;
     const a = Math.atan2(b.vy, b.vx);
+    const lift = MISSILE_LIFT;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.32)';
+    ctx.beginPath(); ctx.ellipse(b.x, b.y, 9, 5, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+    const mx = b.x, my = b.y - lift;
     const fl = 13 + Math.sin(elapsed * 42 + b.x * 0.05) * 3.5;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.drawImage(TEX.glow('#ff8a5c'),
-      b.x - Math.cos(a) * 13 - fl, b.y - Math.sin(a) * 13 - fl, fl * 2, fl * 2);
+      mx - Math.cos(a) * 13 - fl, my - Math.sin(a) * 13 - fl, fl * 2, fl * 2);
     ctx.restore();
-    if (!SPR.draw(ctx, 'missile', b.x, b.y, 30, a, 1, 0)) {
-      ctx.save();                                   // 降级：原发光弹体
-      ctx.translate(b.x, b.y); ctx.rotate(a);
+    if (!SPR.draw(ctx, 'missile', mx, my, 30, a, 1, 0)) {
+      ctx.save();
+      ctx.translate(mx, my); ctx.rotate(a);
       ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.ellipse(0, 0, b.r * 1.7, b.r * 0.85, 0, 0, TAU); ctx.fill();
@@ -3219,7 +3348,8 @@ function drawAimLock() {
   if (!autoAim || !touchLock || touchLock.dead || !player || player.dead) return;
   if (state !== 'playing') return;
   const col = WEAPONS[player.wi].color;
-  const sx = touchLock.x - cam.x + cam.sx, sy = touchLock.y - cam.y + cam.sy;
+  const ap = airDrawPos(touchLock);
+  const sx = ap.x - cam.x + cam.sx, sy = ap.y - cam.y + cam.sy;
   const R = touchLock.r + 13;
   ctx.save();
   ctx.translate(sx, sy);
@@ -3556,6 +3686,8 @@ function step(dt) {
     spawnDriftCrate();
     crateT = rand(7.5, 12.5);
   }
+  runSaveT -= dt;
+  if (runSaveT <= 0) { persistRun(); runSaveT = 8; }
 
   for (let i = portals.length - 1; i >= 0; i--) {
     const pt = portals[i];
@@ -3615,7 +3747,168 @@ function updateWorld(dt) {
 }
 
 /* ═══ 14. 流程控制 ══════════════════════════════════════ */
+const RUN_KEY = 'na_run_v1';
+function dumpAmmo(ammo) {
+  const o = {};
+  for (const k in ammo) o[k] = ammo[k] === Infinity ? -1 : ammo[k];
+  return o;
+}
+function loadAmmo(raw) {
+  const o = {};
+  if (!raw || typeof raw !== 'object') return o;
+  for (const k in raw) o[k] = raw[k] < 0 ? Infinity : raw[k];
+  return o;
+}
+function snapshotRun() {
+  if (!player || player.dead) return null;
+  if (state !== 'playing' && state !== 'paused' && state !== 'perks') return null;
+  return {
+    v: 1, t: Date.now(), state: state === 'playing' ? 'paused' : state,
+    sector, wave, score, kills, shotsFired, shotsHit, combo, comboTimer,
+    runGold, crateT, intermission, themeKey,
+    arena: { w: ARENA.w, h: ARENA.h },
+    obstacles: obstacles.map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h, seed: o.seed })),
+    gates: gates.map(g => ({ x: g.x, y: g.y, r: g.r, pair: g.pair, color: g.color, t: g.t })),
+    authorMark: authorMark ? { x: authorMark.x, y: authorMark.y, rot: authorMark.rot } : null,
+    player: {
+      x: player.x, y: player.y, vx: player.vx, vy: player.vy, r: player.r, aim: player.aim,
+      hp: player.hp, hpMax: player.hpMax, sh: player.sh, shMax: player.shMax,
+      owned: Object.assign({}, player.owned), ammo: dumpAmmo(player.ammo),
+      wi: player.wi, speed: player.speed, dashCd: player.dashCd,
+    },
+    perks: perks.map(p => ({ id: p.id, stacks: p.stacks })),
+    perkChoices: perkChoices.map(c => ({ id: c.def.id, stacks: c.stacks })),
+    runStats: {
+      dmgTaken: runStats.dmgTaken, comboMax: runStats.comboMax,
+      perksTaken: runStats.perksTaken, bossKills: runStats.bossKills,
+      gunsUsed: Object.assign({}, runStats.gunsUsed),
+    },
+    spawnQueue: spawnQueue.map(s => Object.assign({}, s)),
+    enemies: enemies.filter(e => !e.dead).map(e => ({
+      type: e.type, air: !!e.air, boss: !!e.boss,
+      x: e.x, y: e.y, vx: e.vx, vy: e.vy, hp: e.hp, hpMax: e.hpMax,
+      r: e.r, color: e.color, angle: e.angle, cool: e.cool,
+      fireT: e.fireT, burstLeft: e.burstLeft, chargeT: e.chargeT,
+      spawnT: e.spawnT, alt: e.alt, bob: e.bob, mode: e.mode,
+      state: e.state, stateT: e.stateT, runA: e.runA, bombCd: e.bombCd,
+      phase: e.phase, pt: e.pt, sub: e.sub, subN: e.subN,
+      name: e.name, cn: e.cn, speed: e.speed, sprite: e.sprite,
+      strafe: e.strafe, strafeT: e.strafeT, spin: e.spin,
+    })),
+    pickups: pickups.map(u => Object.assign({}, u)),
+    portals: portals.map(p => Object.assign({}, p)),
+    bombs: bombs.map(b => Object.assign({}, b)),
+  };
+}
+function persistRun() {
+  const snap = snapshotRun();
+  if (!snap) return;
+  try { localStorage.setItem(RUN_KEY, JSON.stringify(snap)); } catch (e) {}
+}
+function peekRun() {
+  try {
+    const d = JSON.parse(localStorage.getItem(RUN_KEY) || 'null');
+    return (d && d.v === 1 && d.player) ? d : null;
+  } catch (e) { return null; }
+}
+function hasRun() { return !!peekRun(); }
+function clearRun() {
+  try { localStorage.removeItem(RUN_KEY); } catch (e) {}
+}
+function hydrateEnemy(s) {
+  let e;
+  if (s.boss) e = makeBoss(sector);
+  else if (s.air) e = makeAir(s.type || 'drone', 1);
+  else e = makeEnemy(s.type || 'grunt', s.x, s.y, 1);
+  const keys = ['x','y','vx','vy','hp','hpMax','r','color','angle','cool','fireT','burstLeft',
+    'chargeT','spawnT','alt','bob','mode','state','stateT','runA','bombCd','phase','pt','sub',
+    'subN','name','cn','speed','sprite','strafe','strafeT','spin'];
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (s[k] != null) e[k] = s[k];
+  }
+  e.dead = false;
+  e.steerObs = null;
+  return e;
+}
+function applyRun(data) {
+  sector = data.sector | 0;
+  SEC = SECTORS[Math.min(sector, SECTORS.length - 1)];
+  applyTheme(data.themeKey || SEC.key);
+  ARENA.w = (data.arena && data.arena.w) || ARENA.w;
+  ARENA.h = (data.arena && data.arena.h) || ARENA.h;
+  obstacles = data.obstacles || [];
+  gates = data.gates || [];
+  if (data.authorMark) authorMark = data.authorMark;
+  wave = data.wave | 0;
+  score = data.score | 0;
+  kills = data.kills | 0;
+  shotsFired = data.shotsFired | 0;
+  shotsHit = data.shotsHit | 0;
+  combo = data.combo | 0;
+  comboTimer = +data.comboTimer || 0;
+  runGold = data.runGold | 0;
+  crateT = +data.crateT || 8;
+  intermission = +data.intermission || 0;
+  perks = (data.perks || []).map(p => {
+    const def = PERKS[PI[p.id]];
+    return def ? { id: p.id, stacks: p.stacks || 1, bonus: def.bonus } : null;
+  }).filter(Boolean);
+  perkChoices = (data.perkChoices || []).map(c => {
+    const def = PERKS[PI[c.id]];
+    return def ? { def, stacks: c.stacks || 1 } : null;
+  }).filter(Boolean);
+  if (data.runStats) {
+    runStats = {
+      dmgTaken: data.runStats.dmgTaken | 0,
+      comboMax: data.runStats.comboMax | 0,
+      perksTaken: data.runStats.perksTaken | 0,
+      bossKills: data.runStats.bossKills | 0,
+      gunsUsed: Object.assign({}, data.runStats.gunsUsed || {}),
+    };
+  }
+  player = makePlayer();
+  const dp = data.player;
+  player.x = dp.x; player.y = dp.y; player.vx = dp.vx || 0; player.vy = dp.vy || 0;
+  player.aim = dp.aim; player.hp = dp.hp; player.hpMax = dp.hpMax;
+  player.sh = dp.sh; player.shMax = dp.shMax;
+  player.owned = Object.assign(player.owned, dp.owned || {});
+  player.ammo = Object.assign(player.ammo, loadAmmo(dp.ammo));
+  player.wi = dp.wi | 0; player.speed = dp.speed || player.speed;
+  player.dashCd = +dp.dashCd || 0;
+  player.dead = false;
+  spawnQueue = (data.spawnQueue || []).map(s => Object.assign({}, s));
+  enemies = (data.enemies || []).map(hydrateEnemy);
+  boss = null;
+  for (let i = 0; i < enemies.length; i++) if (enemies[i].boss) boss = enemies[i];
+  pickups = data.pickups || [];
+  portals = data.portals || [];
+  bombs = data.bombs || [];
+  pBullets = []; eBullets = []; parts = []; beams = []; texts = [];
+  slotsBuilt = false;
+  cam.x = clamp(player.x - view.w / 2, 0, Math.max(0, ARENA.w - view.w));
+  cam.y = clamp(player.y - view.h / 2, 0, Math.max(0, ARENA.h - view.h));
+  if (boss && !boss.dead) $('bossBar').classList.add('on');
+  else $('bossBar').classList.remove('on');
+}
+function loadRun() {
+  const data = peekRun();
+  if (!data) return false;
+  applyRun(data);
+  SFX.init(); SFX.resume();
+  if (data.state === 'perks' && perkChoices.length) {
+    setState('perks');
+    showPanel('perks');
+  } else {
+    setState('paused');
+    showPanel('paused');
+  }
+  showHint('已读取本地存档');
+  return true;
+}
+
 function newGame(sectorIdx) {
+  clearRun();
   const s = clamp(sectorIdx | 0, 0, SECTORS.length - 1);
   sector = -1;
   SEC = SECTORS[s];
@@ -3626,13 +3919,7 @@ function newGame(sectorIdx) {
   perks = [];
   resetRunStats();
   achScoreMark = -1;
-  /* 按关卡发放武器 */
-  const guns = Math.min(WEAPONS.length, Math.max(2, SEC.guns));
-  for (let i = 0; i < guns; i++) {
-    const w = WEAPONS[i];
-    player.owned[w.id] = true;
-    player.ammo[w.id] = ammoMaxFor(w);
-  }
+  /* 武器发放集中在 enterSector：startWave 会因 sector=-1 走进关 */
   player.wi = 0;
   refreshPlayerStats();
   player.hp = player.hpMax;
@@ -3651,6 +3938,7 @@ function newGame(sectorIdx) {
   $('bossBar').classList.remove('on');
   setState('playing');
   startWave();
+  persistRun();
 }
 
 function setState(s) {
@@ -3669,6 +3957,7 @@ function pause() {
   bumpMaxAch('bestRun', score);
   bumpMaxAch('bestCombo', runStats.comboMax);
   persist();
+  persistRun();
   setState('paused');
   showPanel('paused');
 }
@@ -3685,6 +3974,7 @@ function gameOver() {
   bumpMaxAch('bestRun', score);
   bumpMaxAch('bestCombo', runStats.comboMax);
   persist();
+  clearRun();
   setState('dead');
   showPanel('dead', isBest);
 }
@@ -3811,7 +4101,8 @@ function showPanel(mode, isBest) {
         <h1>霓虹突袭</h1>
         <div class="sub">NEON ASSAULT &nbsp;·&nbsp; 俯视角竞技场生存射击</div>
         <div class="menu-nav">
-          <button class="btn" id="btnStart">开始游戏</button>
+          ${hasRun() ? '<button class="btn" id="btnContinue">继续游戏</button>' : ''}
+          <button class="btn${hasRun() ? ' ghost' : ''}" id="btnStart">${hasRun() ? '新的一局' : '开始游戏'}</button>
           <div class="menu-links">
             <button class="btn ghost" id="btnLevels">关卡选择</button>
             <button class="btn ghost" id="btnShop">商店</button>
@@ -3876,6 +4167,7 @@ function showPanel(mode, isBest) {
       <div class="perk-now">${perksHtml}</div>
       <div class="actions">
         <button class="btn" id="btnResume">继续游戏</button>
+        <button class="btn ghost" id="btnSaveQuit">保存并退出</button>
         <button class="btn ghost" id="btnRestart">重打本关</button>
         <button class="btn ghost" id="btnLevels2">切换关卡</button>
         <button class="btn ghost" id="btnMenu">返回主菜单</button>
@@ -3947,6 +4239,10 @@ function showPanel(mode, isBest) {
   const bind = (id, fn) => { const el = ov.querySelector(id); if (el) el.addEventListener('click', fn); };
   const start = i => { SFX.init(); SFX.resume(); SFX.ui(); newGame(i); };
   bind('#btnStart',  () => start(0));
+  bind('#btnContinue', () => { SFX.ui(); loadRun(); });
+  bind('#btnSaveQuit', () => {
+    persistRun(); persist(); SFX.ui(); setState('menu'); showPanel('menu');
+  });
   bind('#btnLevels', () => { SFX.ui(); setState('levels'); showPanel('levels'); });
   bind('#btnShop',   () => { SFX.ui(); setState('shop'); showPanel('shop'); });
   bind('#btnLevels2',() => { SFX.ui(); setState('levels'); showPanel('levels'); });
@@ -3954,7 +4250,7 @@ function showPanel(mode, isBest) {
   bind('#btnRestart',() => start(sector));
   bind('#btnRetry',  () => start(sector));
   bind('#btnBack',   () => { SFX.ui(); setState('menu'); showPanel('menu'); });
-  bind('#btnMenu',   () => { SFX.ui(); setState('menu'); showPanel('menu'); });
+  bind('#btnMenu',   () => { persistRun(); SFX.ui(); setState('menu'); showPanel('menu'); });
   bind('#btnSkip',   skipPerk);
   bind('#btnAch',    () => { SFX.ui(); setState('ach'); showPanel('ach'); });
   ov.querySelectorAll('#perkGrid .perk-card').forEach((el, i) =>
@@ -4058,6 +4354,9 @@ window.addEventListener('blur', () => {
   mouse.drag = false;
   if (touchMode) releaseSticks();
   if (state === 'playing') pause();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && (state === 'playing' || state === 'paused' || state === 'perks')) persistRun();
 });
 
 canvas.addEventListener('mousemove', e => {
@@ -4317,6 +4616,7 @@ window.__NA = {
   start: i => newGame(i | 0),
   pause, resume,
   pickPerk,
+  persistRun, loadRun, hasRun, clearRun,
 };
 
 })();
