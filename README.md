@@ -1,79 +1,19 @@
 # 霓虹突袭 · NEON ASSAULT
 
-[![Deploy Web to GitHub Pages](https://github.com/nebulasforce/neonassault/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/nebulasforce/neonassault/actions/workflows/deploy-pages.yml)
-
 俯视角双摇杆竞技场生存射击：在霓虹废墟里清波次、抢补给、打 Boss，直到被打倒。
 
-一套 `web/` 代码，五端交付 —— **浏览器 / PWA / 桌面（mac·Win·Linux）/ Android / HarmonyOS**。
-
 - 在线试玩：<https://nebulasforce.github.io/neonassault/>
-- 技术栈：原生 Canvas 2D + WebAudio，零运行时依赖
+- 国内镜像：<http://118.25.79.136/> （安装包：<http://118.25.79.136/releases/>）
+- 作战简报：<https://nebulasforce.github.io/neonassault/guide.html>
+- 安装包：<https://github.com/nebulasforce/neonassault/releases>
+
+浏览器、PWA、桌面（mac / Windows / Linux）、Android、HarmonyOS 均可游玩。手机与平板请横屏。
 
 ---
 
-## 目录结构
+## 怎么玩
 
-```
-neonassault/
-├── web/                    # ★ 唯一真实来源：纯静态游戏本体
-│   ├── index.html          #    游戏入口（含 PWA meta 与 Service Worker 注册）
-│   ├── guide.html          #    作战简报 / 游戏说明（不加载游戏脚本）
-│   ├── game.js             #    游戏主逻辑
-│   ├── textures.js         #    程序化纹理生成
-│   ├── sprites.js          #    外部贴图加载与缓存
-│   ├── manifest.json       #    PWA 清单
-│   ├── sw.js               #    Service Worker（离线缓存）
-│   ├── icons/              #    源图 na-cool-1024.png + 派生 PWA 图标
-│   └── assets/             #    精灵与贴图资源
-├── electron/               #    桌面端外壳（mac / Win / Linux）
-│   ├── main.js             #    主进程：窗口、菜单、单实例锁
-│   ├── preload.js          #    最小 IPC 桥（contextIsolation）
-│   └── build/              #    icon.icns / icon.ico / icon.png
-├── android/                #    Capacitor Android 工程（自动同步）
-├── harmonyos/              #    鸿蒙 ArkTS Web 封装壳
-│   └── entry/src/main/resources/rawfile/web/   # 由脚本同步生成
-├── scripts/                #    构建与同步脚本
-├── .github/workflows/      #    GitHub Pages 自动部署
-└── package.json            #    脚本入口 + electron-builder 配置
-```
-
-**核心约定**：`web/` 是唯一真实来源。Electron 直接加载它，Android 由 `cap sync` 拷进 assets，鸿蒙由 `scripts/build-harmonyos.js` 拷进 rawfile。**改游戏只改 `web/`**。
-
----
-
-## 快速开始
-
-```bash
-# 安装依赖（推荐 pnpm，仓库已带 .npmrc 国内镜像）
-pnpm install
-
-# 起本地服务器，浏览器打开 http://localhost:8901
-pnpm dev:web
-```
-
-本地服务器是必须的：`file://` 协议下 Canvas 会被跨域污染，贴图无法读取。
-
-### 提交与发版
-
-本机没有 JDK / DevEco 时，用 GitHub Actions 打包。`127.0.0.1:7890` 有代理会自动走代理。
-
-```bash
-make push MSG="说明"                  # 提交并推送 → GitHub Pages
-make release MSG="说明"               # 提交 + 打 tag，并等到 APK / Windows / macOS / 鸿蒙 zip 挂上
-make release VERSION=1.2.2 MSG="说明" # 指定版本号
-make release WAIT=0 MSG="说明"        # 推完即返回，自己去 Actions 看
-make wait                             # 只等待当前版本打包结束
-make tag                              # 只打当前 package.json 版本的 tag
-```
-
-打包进度：<https://github.com/nebulasforce/neonassault/actions>  
-成品：<https://github.com/nebulasforce/neonassault/releases>
-
-鸿蒙 HAP 仍需本机 DevEco；CI 只提供已同步 `web/` 的工程 zip。
-
----
-
-## 操控
+每个区域 5 波，第 5 波为 Boss 战；通关后自动进入下一区域。走位躲弹、找掩体回盾、清怪捡补给、换更强武器，直到被打倒。
 
 ### 桌面（尽量不碰鼠标）
 
@@ -82,21 +22,22 @@ make tag                              # 只打当前 package.json 版本的 tag
 | 移动 | `W` `A` `S` `D` |
 | 瞄准 + 开火 | `↑` `↓` `←` `→`（按下即持续开火） |
 | 冲刺 | `Shift` / `空格` |
-| 切换武器 | `Q` / `E` / 滚轮 |
+| 切换武器 | `Q` / `E` / 滚轮 / `1`–`5` |
 | 暂停 | `P` / `Esc` |
 | 确认（菜单→开局、暂停→继续、阵亡→重开） | `Enter` |
+| 重开当前关 | `R` |
 | 强化三选一 | `1` `2` `3`，跳过按 `S` |
 | 关卡选择界面直达 | `1` – `8` |
-| 查看操作说明 | 主菜单「游戏说明」打开 `guide.html` |
+| 查看操作说明 | 主菜单「游戏说明」打开作战简报 |
 | 自动瞄准 / 自动发射 | 右上 `AIM` / `FIRE`，或主菜单、暂停面板开关（写入存档） |
 
-> 方向键**只用于瞄准**（经典双摇杆手感）；瞄准时按 `WASD` 仍可移动，但方向键不会再让你走动。
->
-> **辅助开关互相独立**：只开瞄准会对准最近敌人但仍需自己开火；只开发射会朝当前朝向连发；两个都开 = 锁定并持续开火。按住鼠标或触屏右半屏可随时手动接管瞄准。
+方向键只用于瞄准（经典双摇杆手感）；瞄准时按 `WASD` 仍可移动，但方向键不会再让你走动。
+
+**辅助开关互相独立**：只开瞄准会对准最近敌人但仍需自己开火；只开发射会朝当前朝向连发；两个都开 = 锁定并持续开火。按住鼠标或触屏右半屏可随时手动接管瞄准。
 
 ### 触屏（横屏双摇杆）
 
-手机与平板**强制横屏**。竖屏会全屏提示旋转；Android / 鸿蒙 / 已安装的 PWA 会由系统锁到横屏（左右横握均可）。
+手机与平板强制横屏。竖屏会全屏提示旋转；Android / 鸿蒙 / 已安装的 PWA 会由系统锁到横屏（左右横握均可）。
 
 - 左半屏：浮动虚拟摇杆移动
 - 右半屏：按住拖动瞄准并持续开火
@@ -107,114 +48,86 @@ make tag                              # 只打当前 package.json 版本的 tag
 
 ---
 
-## 五端构建
+## 核心循环
 
-### 1. Web / PWA
+- **30 秒循环**：走位躲弹 → 找掩体回盾 → 清怪捡补给 → 换更强武器
+- **5 波循环**：常规波积累资源 → Boss 波检验构筑 → 掉落新武器开启下一轮
+- **风险回报**：连杀倍率要贴身打，回盾要脱离接触，两者形成拉扯
 
-```bash
-pnpm build:web          # 产出 dist-web/，并给 sw.js 注入缓存版本戳
-```
+三个设计支点：
 
-把 `dist-web/`（或直接 `web/`）丢到任意静态托管即可。
-PWA 已具备：`manifest.json` + Service Worker + 192/512 图标（含 maskable），支持「添加到主屏幕」与离线运行。
+- **冲刺无敌帧** — 「被围住」是可解的操作题，不是必死局
+- **掩体双向阻挡** — 敌人子弹也被挡，可以卡视野逐个击破
+- **传送门预警** — 敌人生成前约 0.6 秒有可见传送动画
 
-> 更新游戏后务必跑一次 `pnpm build:web`，它会刷新缓存版本号，避免用户卡在旧缓存。
+### 物品与要点
 
-### 2. 桌面端（Electron）
-
-```bash
-pnpm install
-pnpm dev:web            # 另开一个终端保持运行
-pnpm dev:electron       # 开发模式启动桌面窗口
-
-pnpm build:electron:mac     # → dist-electron/（dmg + zip，x64/arm64）
-pnpm build:electron:win     # → nsis 安装包 + portable exe
-pnpm build:electron:linux   # → AppImage
-```
-
-已配置：单实例锁、F11 全屏、F12 开发者工具、`resources/web` 兜底路径、外链走系统浏览器。
-
-**交叉编译说明**：mac 上打 Windows 包需要 `brew install wine-stable`；打 Linux 包需要本机 `dpkg`/`fpm`。同平台打包无需额外依赖。
-
-### 3. Android（Capacitor）
-
-前置：**JDK 17+**、**Android Studio + SDK 34+**（`android/local.properties` 里的 `sdk.dir` 已指向本机 SDK）。
-
-```bash
-pnpm install
-pnpm cap:add            # 首次：生成 android/ 平台（已生成，可跳过）
-pnpm build:android      # 同步 web/ 并打 Debug APK
-pnpm build:android:release   # Release APK
-pnpm cap:open           # 用 Android Studio 打开工程
-```
-
-产物在 `android/app/build/outputs/apk/{debug,release}/`，已按 ABI 分包（`arm64-v8a` / `armeabi-v7a` / `x86_64` + universal）。
-
-**Release 签名**：准备 keystore 后设置环境变量即可，未配置时会回落到 debug 签名以便先跑通构建。
-
-```bash
-export NA_KEYSTORE_FILE=/path/to/neonassault.keystore
-export NA_KEYSTORE_PASSWORD=xxx
-export NA_KEY_ALIAS=neonassault
-export NA_KEY_PASSWORD=xxx
-pnpm build:android:release
-```
-
-已做的 Android 适配：Activity 硬件加速开、WebView **不要**整页 `LAYER_TYPE_HARDWARE`（否则全屏 Canvas 会黑）、`isGame`、`sensorLandscape`、`resizeableActivity=false`。打包装前必须 `npx cap sync android`，`assets/public` 不进 git。
-
-### 4. HarmonyOS（鸿蒙）
-
-前置：**DevEco Studio** + HarmonyOS SDK（API 12+）。
-
-```bash
-pnpm sync:harmonyos     # 把 web/ 同步到 rawfile/web/
-```
-
-然后用 DevEco Studio 打开 `harmonyos/` → *File > Sync and Refresh Project* → *Build > Build Hap(s)*。
-
-已做的适配：`fileAccess`/`javaScriptAccess`/`domStorageAccess` 全开（rawfile 子资源必需）、`setAudioMuted(false)`（WebAudio 需要）、横屏锁定、返回键二次确认退出、首帧加载进度条、`setWindowKeepScreenOn(true)`。
-
-### 5. Chrome 应用 / 扩展
-
-Chrome 已不再接受新的托管应用，PWA 是官方替代方案：直接用浏览器打开 Pages 站点，地址栏点「安装」即可获得独立窗口、离线可用的桌面体验，等价于此前的 Chrome App。
+- **十字** 恢复生命 · **方块** 补充弹药 · **圆环** 充满护盾 · **六边形 W** 掉落新武器
+- **金币** 击杀与通关获得，主菜单商店购买永久强化，进度自动存档
+- 护盾先于生命承伤，脱战 5 秒后自动回充 — 打完一波主动撤退回盾是核心节奏
+- **任意门**：场上成对出现的传送门，飞入一侧会从另一侧出来
+- 连杀每 5 次提升 0.5 倍分数加成，中断计时 3 秒
 
 ---
 
-## 图标
+## 武器
 
-源图：`web/icons/na-cool-1024.png`（脚本不会覆盖它）。
+开局只有脉冲枪与撕裂者；其余靠武器箱或进入新区域发放。
 
-```bash
-pnpm icons:electron -- --force     # 需要 Pillow：pip install pillow
+| 武器 | 定位 |
+| --- | --- |
+| 脉冲枪 | 机载标配，弹药无限，保底点射 |
+| 撕裂者 | 高射速机炮压制，弹药消耗快 |
+| 爆裂霰弹 | 近距清场 + 击退 |
+| 棱镜激光 | 穿透射线，直线高伤 |
+| 微型导弹 | 范围爆破，注意自伤 |
+
+---
+
+## 敌人
+
+地面：游荡者、突袭者、射手、狙击手、重装。  
+空中：侦查无人机、掠袭攻击机、重装炮艇。  
+Boss：哨兵 SENTINEL、幽影 WRAITH、泰坦 TITAN、无畏舰 DREADNOUGHT（空中）。
+
+---
+
+## 八个区域
+
+通关一个区域即解锁下一个；暂停面板可切换已解锁关卡。进入区域会发放该关对应武器与弹药。暂停或切出时当前一局写入本机存档，主菜单可「继续游戏」。
+
+| 区域 | 修正 |
+| --- | --- |
+| 01 霓虹码头 | 标准规则 |
+| 02 熔炉厂区 | 敌人移速 +12% |
+| 03 数据回廊 | 敌人射速 +18% · 弹药补给 +30% |
+| 04 霜蚀荒原 | 敌人血量 +18% · 护盾回复 −40% |
+| 05 毒沼地带 | 敌人数量 +20% · 移速 +8% |
+| 06 虚空尖塔 | 敌人血量 +25% · 得分 +30% |
+| 07 锈蚀船坞 | 敌人数量 +25% · 射速 +12% |
+| 08 核心熔毁 | 全属性强化 · 最终区域 |
+
+武器数值、敌人血量与完整规则见游戏内 [作战简报](https://nebulasforce.github.io/neonassault/guide.html)。
+
+---
+
+## 国内镜像（腾讯云 Docker nginx）
+
+站点、安装包、nginx 配置都外挂在服务器 `/data/neonassault/`，容器只跑 nginx：
+
+```
+www/     游戏静态站
+files/   GitHub Release 安装包（/releases/download/<tag>/）
+nginx/   default.conf
+logs/    access / error
 ```
 
-会从源图派生 PWA（192 / 512 / maskable）、Electron（icns·ico·png）、Android mipmap、鸿蒙 media。加 `--redraw` 会忽略源图、改用几何 NA 占位。
+```bash
+make deploy-tencent                 # 构建 web + 拉最新安装包 → rsync → docker compose up
+SKIP_RELEASES=1 make deploy-tencent # 只热更网页，不重新下载安装包
+```
 
----
-
-## 自动部署（GitHub Pages）
-
-`.github/workflows/deploy-pages.yml` 在每次 push 到 `main` 时，把 `web/` 部署到 GitHub Pages。
-
-首次启用：仓库 **Settings → Pages → Source** 选 **GitHub Actions**，然后 push 一次即可。
-站点地址：`https://<owner>.github.io/neonassault/`
-
----
-
-## 常见问题
-
-**`require('electron')` 返回路径字符串 / 拿不到 `app`**
-宿主环境设置了 `ELECTRON_RUN_AS_NODE=1`，Electron 退化成了纯 Node。用 `pnpm dev:electron`（内部走 `scripts/dev-electron.js`，会剔除该变量）或手动 `env -u ELECTRON_RUN_AS_NODE electron .`。
-
-**Electron 二进制下载超时**
-仓库已带 `.npmrc`，把 npm 与 Electron 二进制指向 npmmirror。若仍失败，手动指定镜像：
-`ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ pnpm install`
-
-**页面白屏 / 贴图加载不出来**
-必须用 HTTP 服务打开（`pnpm dev:web`）。`file://` 下 Canvas 会被污染。
-
-**Android 构建报 "Unable to locate a Java Runtime"**
-未安装 JDK 17+。装完后确认 `java -version` 可用。
+需要本机已能 SSH 到 `root@118.25.79.136`（密钥登录，或导出 `SSHPASS`）。腾讯云安全组放行 80。
 
 ---
 

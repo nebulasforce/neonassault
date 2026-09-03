@@ -1,0 +1,655 @@
+{
+  "generatedAt": "2026-09-02T15:58:28.919Z",
+  "mode": "github",
+  "repo": "https://github.com/nebulasforce/neonassault",
+  "playUrl": "https://nebulasforce.github.io/neonassault/",
+  "releases": [
+    {
+      "tag": "v1.1.13",
+      "name": "v1.1.13",
+      "publishedAt": "2026-09-02T14:50:16Z",
+      "latest": true,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 5344905,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 2004217,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 188900212,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 180755389,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 86528027,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 86881736,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.13/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.12",
+      "name": "v1.1.12",
+      "publishedAt": "2026-09-02T13:36:25Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 5340254,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 2000281,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 188858500,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 180751608,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 86521996,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 86875705,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.12/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.11",
+      "name": "v1.1.11",
+      "publishedAt": "2026-09-02T12:52:24Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 5339984,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 2000182,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 188863894,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 180751569,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 86521807,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 86875526,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.11/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.10",
+      "name": "v1.1.10",
+      "publishedAt": "2026-09-02T12:03:42Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 5339438,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 1999699,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 188884030,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 180751103,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 86520914,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 86874673,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.10/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.8",
+      "name": "v1.1.8",
+      "publishedAt": "2026-09-02T03:30:49Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 5338336,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 1998667,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 188867514,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 180750102,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 86519571,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 86873291,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.8/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.7",
+      "name": "v1.1.7",
+      "publishedAt": "2026-09-02T02:10:55Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 10552763,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 7169157,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 194107663,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 185911129,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 96806427,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 97160146,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.7/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.5",
+      "name": "v1.1.5",
+      "publishedAt": "2026-09-02T01:54:43Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>\n<p><strong>Full Changelog</strong>: https://github.com/nebulasforce/neonassault/compare/v1.1.4...v1.1.5</p>",
+      "assets": []
+    },
+    {
+      "tag": "v1.1.4",
+      "name": "v1.1.4",
+      "publishedAt": "2026-09-01T15:32:51Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>\n<p><strong>Full Changelog</strong>: https://github.com/nebulasforce/neonassault/compare/v1.1.3...v1.1.4</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 10546678,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 7164355,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 194105191,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 185906678,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 96798838,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 97152557,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.4/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.3",
+      "name": "v1.1.3",
+      "publishedAt": "2026-09-01T15:12:18Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可侧载）</li>\n<li><strong>Windows</strong>：<code>neonassault-windows-x64-setup.exe</code> 安装包，或 <code>neonassault-windows-x64-portable.exe</code> 免安装</li>\n<li><strong>macOS</strong>：<code>neonassault-macos-universal.dmg</code>（未公证，首次请右键 → 打开）</li>\n<li><strong>鸿蒙</strong>：GitHub 打不出 HAP。<code>neonassault-harmonyos-deveco.zip</code> 已同步 <code>web/</code> 和图标，用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)</li>\n</ul>\n<p>各端桌面图标 / 启动图标均由 <code>web/icons/na-cool-1024.png</code> 派生（PWA 为 <code>na-192.png</code> / <code>na-512.png</code>）。</p>\n<p><strong>Full Changelog</strong>: https://github.com/nebulasforce/neonassault/compare/v1.2.1...v1.1.3</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 10546678,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 7164355,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.dmg",
+          "label": "macOS 磁盘映像",
+          "hint": "未公证，首次请右键 → 打开",
+          "platform": "macos",
+          "size": 194111342,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-macos-universal.dmg",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-macos-universal.dmg",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-macos-universal.zip",
+          "label": "macOS Zip",
+          "hint": "未公证，备用压缩包",
+          "platform": "macos-zip",
+          "size": 185906675,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-macos-universal.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-macos-universal.zip",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-portable.exe",
+          "label": "Windows 便携版",
+          "hint": "免安装，解压即可玩",
+          "platform": "windows-portable",
+          "size": 96798751,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-windows-x64-portable.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-windows-x64-portable.exe",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-windows-x64-setup.exe",
+          "label": "Windows 安装包",
+          "hint": "NSIS，可选安装目录",
+          "platform": "windows-setup",
+          "size": 33230694,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-windows-x64-setup.exe",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.3/neonassault-windows-x64-setup.exe",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.2",
+      "name": "v1.1.2",
+      "publishedAt": "2026-09-01T13:56:31Z",
+      "latest": false,
+      "notesHtml": "<h3>下载</h3>\n<ul>\n<li><strong>网页 / PWA</strong>：https://nebulasforce.github.io/neonassault/</li>\n<li><strong>Android</strong>：<code>neonassault-android-universal.apk</code>（debug 签名，可直接侧载安装）</li>\n<li><strong>鸿蒙</strong>：GitHub 托管环境打不出 HAP，需要本机 DevEco Studio。</li>\n</ul>\n<p>  <code>neonassault-harmonyos-deveco.zip</code> 已同步最新 <code>web/</code> 资源，解压后用 DevEco 打开 <code>harmonyos/</code> → Build Hap(s)。</p>\n<p><strong>Full Changelog</strong>: https://github.com/nebulasforce/neonassault/compare/v1.1.1...v1.1.2</p>",
+      "assets": [
+        {
+          "name": "neonassault-android-universal.apk",
+          "label": "Android 通用包",
+          "hint": "debug 签名，可直接侧载",
+          "platform": "android",
+          "size": 7502942,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.2/neonassault-android-universal.apk",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.2/neonassault-android-universal.apk",
+          "local": false,
+          "sha256": ""
+        },
+        {
+          "name": "neonassault-harmonyos-deveco.zip",
+          "label": "鸿蒙 DevEco 工程",
+          "hint": "用 DevEco 打开 harmonyos/ 后 Build Hap(s)",
+          "platform": "harmonyos",
+          "size": 3656684,
+          "url": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.2/neonassault-harmonyos-deveco.zip",
+          "githubUrl": "https://github.com/nebulasforce/neonassault/releases/download/v1.1.2/neonassault-harmonyos-deveco.zip",
+          "local": false,
+          "sha256": ""
+        }
+      ]
+    },
+    {
+      "tag": "v1.1.1",
+      "name": "v1.1.1",
+      "publishedAt": "2026-09-01T13:52:23Z",
+      "latest": false,
+      "notesHtml": "",
+      "assets": []
+    }
+  ]
+}

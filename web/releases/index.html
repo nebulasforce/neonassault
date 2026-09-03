@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#05070f">
+<meta name="description" content="霓虹突袭国内镜像：网页试玩与 Android / Windows / macOS / 鸿蒙安装包下载。">
+<link rel="icon" type="image/png" sizes="192x192" href="../icons/na-192.png">
+<link rel="apple-touch-icon" href="../icons/na-192.png">
+<title>投放清单 · 霓虹突袭</title>
+<style>
+  :root{
+    --bg:#05070f; --cyan:#7df9ff; --magenta:#ff4d6d; --violet:#c77dff;
+    --lime:#9ae66e; --gold:#ffe066; --ink:#e8f1ff; --dim:#7d8aa5;
+    --accent:#7df9ff; --panel:#0b1220;
+    --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+    --grid:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M40 0H0v40' fill='none' stroke='%237df9ff' stroke-opacity='.07' stroke-width='1'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    min-height:100%;color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",-apple-system,system-ui,sans-serif;
+    background:
+      radial-gradient(1100px 560px at 8% -12%,rgba(125,249,255,.09),transparent 55%),
+      radial-gradient(820px 480px at 108% 0%,rgba(255,77,109,.08),transparent 52%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;line-height:1.6}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;background-image:var(--noise);opacity:.035;mix-blend-mode:overlay;z-index:0}
+  body::after{content:'';position:fixed;inset:0;pointer-events:none;background-image:var(--grid);opacity:.5;z-index:0}
+  a{color:var(--cyan)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em;color:var(--gold)}
+  .top{
+    position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    padding:14px 28px;border-bottom:1px solid rgba(255,255,255,.1);
+    background:rgba(5,7,15,.9);backdrop-filter:blur(12px)}
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;min-width:180px}
+  .brand img{width:36px;height:36px;border:1px solid rgba(125,249,255,.35)}
+  .brand b{display:block;font-size:15px;letter-spacing:.22em}
+  .brand span{display:block;font-size:9px;letter-spacing:.32em;color:var(--dim)}
+  nav{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+  nav a{color:var(--dim);text-decoration:none;font-size:11px;letter-spacing:.16em;padding:8px 10px;border:1px solid transparent}
+  nav a:hover,nav a.on{color:var(--cyan);border-color:rgba(125,249,255,.35)}
+  .go{appearance:none;font:inherit;text-decoration:none;font-size:12px;letter-spacing:.22em;
+      padding:11px 22px;border:1px solid var(--cyan);color:var(--cyan);
+      background:rgba(125,249,255,.1);transition:.16s}
+  .go:hover{background:var(--cyan);color:#04070e;box-shadow:0 0 24px rgba(125,249,255,.45)}
+  .wrap{position:relative;z-index:1;width:min(1080px,94vw);margin:0 auto;padding:42px 0 88px}
+  .stamp{font-size:10px;letter-spacing:.38em;color:var(--magenta);margin-bottom:10px}
+  h1{font-size:clamp(32px,6vw,52px);font-weight:900;letter-spacing:.1em;line-height:1.05;
+     background:linear-gradient(96deg,#7df9ff,#c77dff 48%,#ff4d6d);
+     -webkit-background-clip:text;background-clip:text;color:transparent;
+     filter:drop-shadow(0 0 26px rgba(125,249,255,.28))}
+  .lede{font-size:16px;color:#c3cee0;max-width:46em;margin:16px 0 28px}
+  .rec{
+    display:none;margin:0 0 28px;padding:16px 18px;border:1px solid rgba(125,249,255,.35);
+    background:linear-gradient(120deg,rgba(125,249,255,.12),rgba(8,14,26,.7));
+    align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .rec.on{display:flex}
+  .rec b{letter-spacing:.18em;font-size:12px;color:var(--cyan)}
+  .rec span{display:block;font-size:13px;color:#c3cee0;margin-top:4px}
+  .drop{
+    margin:0 0 36px;padding:26px 26px 20px;border:1px solid rgba(255,255,255,.1);
+    background:linear-gradient(160deg,rgba(16,26,46,.82),rgba(6,10,20,.9));position:relative}
+  .drop::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:14px}
+  .tag{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:22px;font-weight:800;letter-spacing:.04em;color:#fff}
+  .pill{font-size:10px;letter-spacing:.2em;padding:4px 8px;border:1px solid var(--lime);color:var(--lime)}
+  .date{font-size:12px;color:var(--dim);letter-spacing:.08em}
+  .notes{color:#c3cee0;font-size:14px;margin:8px 0 18px}
+  .notes h3{font-size:12px;letter-spacing:.22em;color:var(--cyan);margin:12px 0 8px}
+  .notes ul{list-style:none;margin:0}
+  .notes li{padding-left:14px;position:relative;margin-bottom:6px}
+  .notes li::before{content:"\203A";position:absolute;left:0;color:var(--cyan)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin:8px 0 18px}
+  .card{
+    display:flex;flex-direction:column;gap:6px;padding:16px 16px 14px;text-decoration:none;color:inherit;
+    border:1px solid rgba(255,255,255,.1);background:rgba(8,14,26,.55);transition:.16s}
+  .card:hover{border-color:var(--cyan);transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,.45),0 0 22px rgba(125,249,255,.16)}
+  .card .k{font-size:10px;letter-spacing:.2em;color:var(--dim)}
+  .card b{font-size:15px;letter-spacing:.04em}
+  .card .s{font-size:12px;color:var(--gold);font-variant-numeric:tabular-nums}
+  .card .h{font-size:12px;color:#9fb0c8;line-height:1.45}
+  .card .dl{margin-top:auto;padding-top:8px;font-size:11px;letter-spacing:.18em;color:var(--cyan)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.07);vertical-align:middle}
+  th{font-size:10px;letter-spacing:.16em;color:var(--dim);font-weight:600}
+  .fn{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;word-break:break-all}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:11px;letter-spacing:.16em;
+    padding:7px 12px;border:1px solid var(--cyan);color:var(--cyan);background:rgba(125,249,255,.08);white-space:nowrap}
+  .btn:hover{background:var(--cyan);color:#04070e}
+  .btn.ghost{border-color:rgba(255,255,255,.18);color:var(--dim)}
+  .btn.ghost:hover{border-color:var(--cyan);color:var(--cyan);background:transparent}
+  .hist{margin-top:48px}
+  .hist h2{font-size:13px;letter-spacing:.28em;color:var(--cyan);margin-bottom:14px}
+  .old{margin-bottom:16px;border:1px solid rgba(255,255,255,.08);background:rgba(8,14,26,.4)}
+  .old summary{cursor:pointer;list-style:none;padding:14px 18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .old summary::-webkit-details-marker{display:none}
+  .old summary::after{content:'展开';margin-left:auto;font-size:11px;letter-spacing:.16em;color:var(--dim)}
+  .old[open] summary::after{content:'收起'}
+  .old .body{padding:0 18px 16px}
+  .muted{font-size:12px;color:var(--dim)}
+  .err{padding:18px;border:1px solid var(--magenta);color:#ffc1cb}
+  .foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+        margin-top:36px;padding-top:22px;border-top:1px solid rgba(255,255,255,.1);font-size:12px;color:var(--dim)}
+  @media (max-width:720px){
+    .top{padding:12px 16px}
+    .wrap{padding:28px 0 64px}
+    .drop{padding:18px 14px}
+    td:first-child{white-space:normal}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.card{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../index.html">
+    <img src="../icons/na-192.png" alt="">
+    <span><b>霓虹突袭</b><span>RELEASE DROPS</span></span>
+  </a>
+  <nav>
+    <a href="../index.html">网页版</a>
+    <a href="../guide.html">作战简报</a>
+    <a class="on" href="./">安装包</a>
+  </nav>
+  <a class="go" href="../index.html">开始游戏</a>
+</header>
+
+<main class="wrap">
+  <p class="stamp">DOMESTIC MIRROR · GITHUB RELEASES</p>
+  <h1>投放清单</h1>
+  <p class="lede">国内直链，免翻墙。结构对齐 GitHub Releases：最新版本置顶，下面是完整资源表与历史版本。网页版也可以直接玩，不必装客户端。</p>
+
+  <div class="rec" id="rec"></div>
+  <div id="latest">正在读取投放记录…</div>
+  <div class="hist" id="hist"></div>
+
+  <div class="foot">
+    <span>源仓库 <a href="https://github.com/nebulasforce/neonassault/releases" rel="noreferrer">GitHub Releases</a></span>
+    <span class="note" id="gen"></span>
+  </div>
+</main>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fmtSize = n => {
+    n = Number(n) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1073741824 > 1 ? (n/1073741824).toFixed(2) + ' GB' : (n/1048576).toFixed(1) + ' MB');
+  };
+  const fmtDate = iso => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const p = n => String(n).padStart(2,'0');
+    return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate());
+  };
+  const guess = () => {
+    const ua = navigator.userAgent || '';
+    if (/Android/i.test(ua)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'web';
+    if (/Win/i.test(ua)) return 'windows-setup';
+    if (/Mac/i.test(ua)) return 'macos';
+    if (/Linux/i.test(ua)) return 'linux';
+    return 'web';
+  };
+  const assetRow = a => '<tr>' +
+    '<td><div class="fn">' + a.name + '</div><div class="muted">' + (a.hint || a.label) + '</div></td>' +
+    '<td>' + fmtSize(a.size) + '</td>' +
+    '<td>' + (a.local ? '国内直链' : 'GitHub') + '</td>' +
+    '<td><a class="btn" href="' + a.url + '" download="' + a.name + '">下载</a>' +
+      (a.githubUrl && a.local ? ' <a class="btn ghost" href="' + a.githubUrl + '">源站</a>' : '') +
+    '</td></tr>';
+  const assetTable = assets => '<table><thead><tr><th>文件</th><th>大小</th><th>来源</th><th></th></tr></thead><tbody>' +
+    assets.map(assetRow).join('') + '</tbody></table>';
+  const card = a => '<a class="card" href="' + a.url + '" download="' + a.name + '">' +
+    '<span class="k">' + a.platform.toUpperCase() + '</span>' +
+    '<b>' + a.label + '</b>' +
+    '<span class="s">' + fmtSize(a.size) + (a.local ? ' · 国内直链' : '') + '</span>' +
+    '<span class="h">' + (a.hint || '') + '</span>' +
+    '<span class="dl">下载 →</span></a>';
+
+  fetch('releases.json', { cache: 'no-cache' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      const list = data.releases || [];
+      const latest = list.find(x => x.latest) || list[0];
+      if (!latest) throw new Error('empty');
+      const primary = ['android','windows-setup','windows-portable','macos','harmonyos']
+        .map(p => latest.assets.find(a => a.platform === p))
+        .filter(Boolean);
+      $('latest').innerHTML =
+        '<article class="drop" id="' + latest.tag + '">' +
+          '<div class="meta"><span class="tag">' + latest.tag + '</span>' +
+          '<span class="pill">LATEST</span><span class="date">' + fmtDate(latest.publishedAt) + '</span></div>' +
+          '<div class="notes">' + (latest.notesHtml || '') + '</div>' +
+          '<div class="cards">' + primary.map(card).join('') + '</div>' +
+          assetTable(latest.assets) +
+        '</article>';
+
+      const recPlat = guess();
+      const rec = latest.assets.find(a => a.platform === recPlat) || (recPlat === 'web' ? null : latest.assets[0]);
+      if (rec) {
+        $('rec').classList.add('on');
+        $('rec').innerHTML = '<div><b>为当前设备推荐</b><span>' + rec.label + ' · ' + rec.name + ' · ' + fmtSize(rec.size) + '</span></div>' +
+          '<a class="go" href="' + rec.url + '" download="' + rec.name + '">立即下载</a>';
+      }
+
+      const older = list.filter(r => r !== latest);
+      if (older.length) {
+        $('hist').innerHTML = '<h2>历史版本</h2>' + older.map(r =>
+          '<details class="old" id="' + r.tag + '"><summary><span class="tag" style="font-size:16px">' + r.tag + '</span>' +
+          '<span class="date">' + fmtDate(r.publishedAt) + '</span><span class="muted">' + r.assets.length + ' 个文件</span></summary>' +
+          '<div class="body">' + (r.notesHtml ? '<div class="notes">' + r.notesHtml + '</div>' : '') + assetTable(r.assets) + '</div></details>'
+        ).join('');
+      }
+      $('gen').textContent = (data.mode === 'mirror' ? '国内镜像' : 'GitHub 源站') +
+        (data.generatedAt ? ' · 生成于 ' + fmtDate(data.generatedAt) : '');
+    })
+    .catch(() => {
+      $('latest').innerHTML = '<div class="err">投放清单读取失败。请稍后刷新，或前往 <a href="https://github.com/nebulasforce/neonassault/releases">GitHub Releases</a>。</div>';
+    });
+})();
+</script>
+</body>
+</html>

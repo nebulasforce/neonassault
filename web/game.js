@@ -4107,6 +4107,7 @@ function showPanel(mode, isBest) {
             <button class="btn ghost" id="btnLevels">关卡选择</button>
             <button class="btn ghost" id="btnShop">商店</button>
             <a class="btn ghost" href="guide.html">游戏说明</a>
+            <a class="btn ghost" href="releases/">安装包</a>
             <button class="btn ghost" id="btnAch">成就 ${achCount()}/${ACHIEVEMENTS.length}</button>
           </div>
         </div>

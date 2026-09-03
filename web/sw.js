@@ -31,6 +31,12 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
+  const reqUrl = new URL(req.url);
+  /* 安装包与投放清单走网络：大文件不能进 SW，清单也要能马上看到新版本 */
+  if (reqUrl.pathname.includes('/releases/')) {
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
+    return;
+  }
   // 优先命中缓存，失败再回源
   event.respondWith(
     caches.match(req).then(cached => {
